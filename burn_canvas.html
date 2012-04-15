@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta charset="utf-8" />
+	<title>Burn Canvas</title>
+	<style type="text/css">
+		body { margin: 0; overflow: hidden }
+		p { margin: 10px 0 }
+		a { color: #bbf }
+		nav { position: absolute; right: 0; top: 0;
+			width: 350px; background: #000;
+			opacity: 0.7; padding: 0 20px; color: #fff;
+			font-family: monospace; font-size: 12px }
+		div#error { position: absolute; width: 30%; left: 35%;
+			top: 50%; padding: 10px; border: 1px solid #633;
+			background: #fdd; margin-top: -50px;
+			font-size: 16px; font-weight: bold; color: #422 }
+	</style>
+</head>
+<body>
+	<canvas id="view"></canvas>
+	<div id="error">
+		Error: This application requires JavaScript to run.
+	</div>
+	<nav>
+		<p>
+			A test of local pixel-based modifications of
+			an HTML5 canvas. Drag around the screen, change effects:
+			<a href="#" id="pick0" style="color: #fff">burn</a>,
+			<a href="#" id="pick1">melt</a>.
+		</p>
+		<p>
+			The code is open-source, see more at
+			<a href="http://guciek.github.com"
+				>guciek.github.com</a>.
+		</p>
+	</nav>
+	<script>
+
+// Copyright by Karol Guciek (http://guciek.github.com)
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2 or 3.
+
+function error(msg) {
+	try {
+		var div = document.getElementById("error");
+		if (msg) {
+			div.style.display = "block";
+			div.innerText = "Error: "+msg;
+		} else {
+			div.style.display = "none";
+		}
+	} catch(e) {
+		if (msg) { alert("Error: "+msg); }
+	}
+}
+
+var effects = [];
+
+effects[effects.length] = function(i, centerx, centery, radius) {
+	// Burn
+	var rr = 1/(radius*radius), pos = 0, w = i.width, t = 0, v = 0,
+		a = 0, vv = 0,idata = i.data, x, y, b, bb;
+	for (y = 0; y < i.height; y++) {
+		b = y-centery;
+		bb = b*b;
+		for (x = 0; x < w; x++) {
+			a = x-centerx;
+			v = 1 - (a*a + bb)*rr;
+			if (v <= 0) {
+				pos += 4;
+				continue;
+			}
+			vv = v*v;
+			v = 6*(vv - vv*v);
+			t = idata[pos];
+			t -= v*10;
+			if (t < 0) { t += 256; }
+			idata[pos] = t;
+			pos++;
+			t = idata[pos];
+			t -= v*21.23553;
+			if (t < 0) { t += 256; }
+			idata[pos] = t;
+			pos++;
+			t = idata[pos];
+			t -= v*46.72232;
+			if (t < 0) { t += 256; }
+			idata[pos] = t;
+			pos += 2;
+		}
+	}
+};
+
+effects[effects.length] = function(i, centerx, centery, radius) {
+	// Melt
+	var x, y, pos, a, b, v;
+	for (y = i.height-1; y >= 1; y--) {
+		for (x = 0; x < i.width; x++) {
+			pos = 4*(i.width*y + x);
+			a = x-centerx;
+			b = y-centery;
+			v = 1 - (a*a + b*b)/(radius*radius);
+			if (v < 0) { v = 0; }
+			v = v*v;
+			i.data[pos] += v*(i.data[pos-i.width*4]-i.data[pos]);
+			i.data[pos+1] += v*(i.data[pos+1-i.width*4]-i.data[pos+1]);
+			i.data[pos+2] += v*(i.data[pos+2-i.width*4]-i.data[pos+2]);
+		}
+	}
+};
+
+function draw() {
+	var view, effectnr = 0, i, w, h, reach = 50, x = -1, y = -1;
+	try {
+		view = document.getElementById("view").getContext("2d");
+	} catch(err) {
+		throw "Your web browser does not support "+
+			"the <canvas> element!";
+	}
+	function init_button(n) {
+		var b = document.getElementById("pick"+n);
+		b.onclick = function() {
+			effectnr = n;
+			var i;
+			for (i = 0; i < effects.length; i++) {
+				document.getElementById("pick"+i).style.color =
+					(i === n) ? 'white' : '';
+			}
+			return false;
+		};
+	}
+	for (i = 0; i < effects.length; i++) { init_button(i); }
+	document.getElementsByTagName('nav')[0].onmousedown = function(e) {
+		e.stopPropagation();
+	};
+	w = view.canvas.width;
+	h = view.canvas.height;
+	function resize() {
+		view.canvas.width = w = window.innerWidth;
+		view.canvas.height = h = window.innerHeight;
+		view.fillStyle = "rgb(255,255,255)";
+		view.fillRect(0, 0, w, h);
+	}
+	resize();
+	window.onresize = resize;
+	function frame() {
+		if (x < 0) { return; }
+		var x1 = x-reach, x2 = x+reach, y1 = y-reach, y2 = y+reach, i;
+		if (x1 < 0) { x1 = 0; }
+		if (y1 < 0) { y1 = 0; }
+		if (x1 > w-1) { return; }
+		if (y1 > h-1) { return; }
+		if (x2 < x1+1) { x2 = x1+1; }
+		if (y2 < y1+1) { y2 = y1+1; }
+		if (x2 > w) { x2 = w; }
+		if (y2 > h) { y2 = h; }
+		i = view.getImageData(x1, y1, x2-x1, y2-y1);
+		effects[effectnr](i, x-x1, y-y1, reach);
+		view.putImageData(i, x1, y1);
+		if (reach < 100) { reach++; }
+	}
+	function move(e) {
+		if (e.changedTouches &&
+			(e.changedTouches.length >= 1)) {
+				e = e.changedTouches[0];
+		}
+		x = e.pageX;
+		y = e.pageY;
+		reach = 50;
+		return false;
+	}
+	document.addEventListener('mousemove', move, false);
+	document.addEventListener('touchmove', move, false);
+	function prevent(e) {
+		try { e.preventDefault(); } catch(err) {}
+		return false;
+	}
+	document.addEventListener('mousedown', prevent, false);
+	document.addEventListener('touchstart', prevent, false);
+	return {
+		frame: frame
+	};
+}
+
+function timer() {
+	var d = null;
+	function step() {
+		try {
+			if (d === null) {
+				d = draw();
+			} else {
+				d.frame();
+			}
+			setTimeout(step, 8);
+			error();
+		} catch (err) {
+			error(err);
+		}
+	}
+	step();
+}
+
+timer();
+
+	</script>
+</body>
+</html>

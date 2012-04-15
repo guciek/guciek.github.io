@@ -1,0 +1,1272 @@
+<!DOCTYPE html> 
+<html lang="pl"> 
+<head> 
+	<meta charset="utf-8" /> 
+	<title>Wydrukuj fakturę VAT</title> 
+</head> 
+<body>
+
+<p style="color:red;font-size:20px">Do poprawnego działania programu
+	wymagana jest obsługa JavaScript!</p>
+<p>Drukowanie faktury VAT</p>
+<p>Zanim zaczniesz wprowadzać dane potrzebne do wygenerowania faktury,
+	upewnij się, że twoja przeglądarka potrafi poprawnie wydrukować
+	dokument stworzony przez niniejszą aplikację.</p>
+<p>Przeglądarka powinna mieć opcję drukowania wyświetlonej strony,
+	bez żadnego dodatkowego nagłówka i&nbsp;stopki.
+	Zalecana przeglądarka to Mozilla Firefox w wersji 3.6 lub wyższej.</p>
+<p>Informacje o programie</p>
+<p>Dane sprzedawcy i nabywcy</p>
+<p>Nazwa i adres nabywcy</p>
+<p>Lista przedmiotów/usług</p>
+<p>Wydruk</p>
+<p>Nazwa i adres sprzedawcy</p>
+<p>nazwisko i imię lub nazwa (skrócona nazwa) firmy</p>
+<p>adres</p>
+<p>NIP lub REGON, PESEL</p>
+<p>sposób zapłaty</p>
+<p>nr rach. bankowego</p>
+<p>symbol zamówienia/oferty</p>
+<p>transport</p>
+<p>data wydania towaru (wykonania usługi)</p>
+<p>termin zapłaty</p>
+<p></p>
+<p>Zapisane faktury</p>
+<p>Brak zapisanych faktur.</p>
+<p>Fakturę możesz zapisać w zakładce &quot;Wydruk&quot;.
+	Wskazówka: aby zmienić wcześniej zapisaną fakturę,
+	otwórz ją, zmodyfikuj, a następnie zapisz pod inną nazwą.</p>
+<p>własny środek transportu</p>
+<p>przelew</p>
+<p>Bezpieczeństwo i prywatność</p>
+<p>Niniejszy program wykonuje się wyłącznie w przeglądarce,
+	nie przesyłając żadnych danych przez sieć.
+	Mechanizmy przygotowania faktury, a także zapisywania faktur
+	opierają się na lokalnych skryptach, nie ma więc ryzyka,
+	że dane zostaną odczytane przez osoby niepowołane.</p>
+<p>Jeśli obawiasz się o bezpieczeństwo, odłącz dostęp do sieci
+	przed wpisywaniem danych! Program działa bez połączenia
+	z serwerem, więc można go używać off-line.</p>
+<p>Zapisywanie</p>
+<p>Nazwa faktury</p>
+<p>Zapisz</p>
+<p>Drukowanie faktury</p>
+<p>Jeśli wystąpią jakiekolwiek problemy z drukowaniem,
+	proszę skontaktować się z autorem programu
+	(<a href="http://guciek.github.com">guciek.github.com</a>).</p>
+<p>Przed drukowaniem należy w opcjach przeglądarki wyłączyć
+	automatyczne dodawanie nagłówka i&nbsp;stopki
+	z&nbsp;adresem strony i datą.</p>
+<p>Warto także zmniejszyć szerokość marginesów strony,
+	które przy domyślnych ustawieniach są czesto zbyt duże.</p>
+<p>Drukuj oryginał</p>
+<p>Drukuj kopię</p>
+<p>Numer faktury</p>
+<p>miejscowość, data wystawienia faktury</p>
+<p>FAKTURA VAT NR</p>
+<p>ORYGINAŁ</p>
+<p>KOPIA</p>
+<p>SPRZEDAWCA:</p>
+<p>NABYWCA:</p>
+<p>This program is distributed under the terms
+	of the GNU General Public License<br/>
+	Copyright by Karol Guciek <a href="http://guciek.github.com">guciek.github.com</a></p>
+<p>W przeglądarce Internet Explorer drukowane faktury
+	są zniekształcone do tego stopnia, że nie nadają się do użytku.</p>
+<p>(usuń)</p>
+<p>(wczytaj)</p>
+<p>Faktura:</p>
+<p>L. p.</p>
+<p>Nazwa towaru lub usługi</p>
+<p>Wartość netto</p>
+<p>Podatek</p>
+<p>Wartość brutto</p>
+<p>zł</p>
+<p>gr</p>
+<p>stawka<br/>(%)</p>
+<p>kwota</p>
+<p>netto zł</p>
+<p>gr</p>
+<p>podatek&nbsp;(%)</p>
+<p>więcej</p>
+<p>skasuj ostatni</p>
+<p>Razem</p>
+<p>DO ZAPŁATY</p>
+<p>słownie</p>
+<p>czytelny podpis lub<br/>imię, nazwisko i podpis
+	osoby uprawnionej<br/>do otrzymania faktury</p>
+<p>czytelny podpis lub<br/>imię, nazwisko i podpis
+	osoby uprawnionej<br/>do wystawienia faktury</p>
+
+<script type="text/javascript">
+// Copyright by Karol Guciek (http://guciek.github.com)
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2 or 3.
+
+var pageStrings = [];
+
+var tabTitles = [];
+var tabsel = 0;
+
+var inpDes = [];
+var inpData = [];
+var inpCnt = 50;
+
+var tabCnt = 1;
+var tabData = [];
+
+var tableCalculationsData = [];
+
+var divHeader = ' style="font-size:16px;padding:6px 0 4px 0;font-weight:bold"';
+var divPara = ' style="max-width:50em;padding:10px 0 6px 0"';
+var spanLink = ' style="color:rgb(50,50,150);cursor:pointer"';
+
+function plOdmienPoLiczbie(l, s)
+{
+	var c = l.charAt(l.length-1);
+	if ((c == 'n') && (l.indexOf(' ') < 0)) return s[1];
+	if ((c == 'a') && (l.charAt(l.length-2) != 'i')) return s[2];
+	if ((c == 'y') && (l.charAt(l.length-2) != 'c')) return s[2];
+	return s[0];
+}
+
+function plLiczbaSlownieDoTys(s)
+{
+	if (s.length > 3) return '?';
+	while (s.length < 3) s = '0'+s;
+	
+	var r = '';
+	var t;
+	
+	var slownieSetki = ['', 'sto', 'dwieście', 'trzysta', 'czterysta', 'pięćset',
+		'sześćset', 'siedemset', 'osiemset', 'dziewięćset'];
+	var slownieDziesiatki = ['', '', 'dwadzieścia', 'trzydzieści',
+		'czterdzieści', 'pięćdziesiąt', 'sześćdziesiąt', 'siedemdziesiąt',
+		'osiemdziesiąt', 'dziewięćdziesiąt'];
+	var slownieNascie = ['dziesięć', 'jedenaście', 'dwanaście', 'trzynaście',
+		'czternaście', 'piętnaście', 'szesnaście', 'siedemnaście',
+		'osiemnaście', 'dziewiętnaście'];
+	var slownieJednosci = ['zero', 'jeden', 'dwa', 'trzy',
+		'cztery', 'pięć', 'sześć', 'siedem', 'osiem', 'dziewięć'];
+	
+	t = slownieSetki[parseInt(s.charAt(0))];
+	if (t != '') r += t;
+	
+	if (s.charAt(1) == '1')
+	{
+		if (r != '') r += ' ';
+		r += slownieNascie[parseInt(s.charAt(2))];
+	}
+	else
+	{
+		t = slownieDziesiatki[parseInt(s.charAt(1))];
+		if (t != '')
+		{
+			if (r != '') r += ' ';
+			r += t;
+		}
+		
+		if ((s.charAt(2) != '0') || (r == ''))
+		{
+			t = slownieJednosci[parseInt(s.charAt(2))];
+			if (r != '') r += ' ';
+			r += t;
+		}
+	}
+	
+	return r;
+}
+
+function plLiczbaSlownieDoMln(s)
+{
+	if (s.length > 6) return '?';
+	while (s.length < 6) s = '0'+s;
+	var r = '';
+	if (s.substr(0, 3) != '000')
+	{
+		r += plLiczbaSlownieDoTys(s.substr(0, 3));
+		r += ' '+plOdmienPoLiczbie(r, ['tysięcy', 'tysiąc', 'tysiące']);
+	}
+	if ((s.substr(3) != '000') || (r == ''))
+	{
+		if (r != '') r += ' ';
+		r += plLiczbaSlownieDoTys(s.substr(3));
+	}
+	return r;
+}
+
+function plKwotaSlownieZlGl(z, g)
+{
+	if (z.length > 6) return 'błąd wypisywania kwoty słownie';
+	
+	var zsl = plLiczbaSlownieDoMln(z);
+	var gsl = plLiczbaSlownieDoMln(g);
+	
+	var r = zsl+' ';
+	r += plOdmienPoLiczbie(zsl, ['złotych', 'złoty', 'złote']);
+	r += ' '+gsl+' ';
+	r += plOdmienPoLiczbie(gsl, ['groszy', 'grosz', 'grosze']);
+	
+	return r;
+}
+
+function firstLetterUppercase(s)
+{
+	if (!s) return "";
+	if (!(s.charAt(0))) return s;
+	return (s.charAt(0).toUpperCase()+s.substring(1));
+}
+
+function strReplaceAll(s, from, to)
+{
+	var r = '';
+	var i;
+	i = s.indexOf(from);
+	while (i >= 0)
+	{
+		if (i > 0) r += s.substr(0, i);
+		r += to;
+		s = s.substr(i+from.length);
+		i = s.indexOf(from);
+	}
+	r += s;
+	return r;
+}
+
+function userInputVal(s)
+{
+	s = strReplaceAll(s, "&", "&amp;");
+	s = strReplaceAll(s, "<", "&lt;");
+	s = strReplaceAll(s, ">", "&gt;");
+	s = strReplaceAll(s, '"', "&quot;");
+	s = strReplaceAll(s, "'", "&quot;");
+	return s;
+}
+
+function userInputNum(s)
+{
+	var r = '';
+	var i = 0;
+	var c;
+	var c1 = '1'.charCodeAt(0);
+	var c2 = '9'.charCodeAt(0);
+	while (i < s.length)
+	{
+		if (s.charAt(i) == '0')
+		{
+			if (r.length > 0) r += s.charAt(i);
+		}
+		else
+		{
+			c = s.charCodeAt(i);
+			if ((c >= c1) && (c <= c2)) r += s.charAt(i);
+		}
+		i++;
+	}
+	return r;
+}
+
+function userSaveVar(k, v)
+{
+	if (!v) return;
+
+	if ((typeof localStorage) == "object")
+	{
+		try
+		{
+			localStorage.setItem('402334578_'+k, v);
+		}
+		catch (e)
+		{
+		}
+	}
+}
+
+function userReadVar(k)
+{
+	if ((typeof localStorage) == "object")
+	{
+		try
+		{
+			var r = localStorage.getItem('402334578_'+k);
+			if (r) return r;
+		}
+		catch (e)
+		{
+		}
+	}
+	return "";
+}
+
+function btnDivPara(bdpAction, bdpTitle)
+{
+	var s =
+		'<div'+divPara+'>'
+			+'<span onclick="'+bdpAction+'"'+spanLink+'>'
+				+bdpTitle
+			+'</span>'
+		+'</div>';
+	
+	return s;
+}
+
+function restorePageData()
+{
+	var i;
+	var e;
+	
+	i = 0;
+	while (i < inpCnt)
+	{
+		e = document.getElementById('inp'+i);
+		if (e)
+		{
+			e.value = inpData[i];
+		}
+		i++;
+	}
+}
+
+function storePageInpData()
+{
+	var i;
+	var e;
+	
+	i = 0;
+	while (i < inpCnt)
+	{
+		e = document.getElementById('inp'+i);
+		if (e)
+		{
+			inpData[i] = userInputVal(e.value);
+		}
+		i++;
+	}
+}
+
+function minNumStrLen(s, l)
+{
+	while (s.length < l) s = '0'+s;
+	return s;
+}
+
+function storePageTabData()
+{
+	var i;
+	var e;
+	
+	i = 0;
+	while (i < inpCnt)
+	{
+		e = document.getElementById('tab'+i);
+		if (e)
+		{
+			tabData[i] =
+			[
+				userInputVal(e.childNodes[0].value),
+				minNumStrLen(userInputNum(e.childNodes[1].value), 1),
+				minNumStrLen(userInputNum(e.childNodes[2].value), 2),
+				minNumStrLen(userInputNum(e.childNodes[3].value), 1)
+			];
+		}
+		i++;
+	}
+}
+
+function storePageData()
+{
+	storePageInpData();
+	storePageTabData();
+}
+
+function delSaved(i)
+{
+	userSaveVar('s'+i+'_state', 'deleted');
+	writeBody();
+}
+
+function restoreSaved(i)
+{
+	if (userReadVar('s'+i+'_state') != "ok") return;
+	
+	var k;
+	
+	k = 0;
+	while (k < inpCnt)
+	{
+		inpData[k] = userReadVar('s'+i+'_d'+k);
+		k++;
+	}
+	
+	tabCnt = parseInt(userReadVar('s'+i+'_tcnt'));
+	
+	tabData = [];
+	
+	if (tabCnt < 1)
+	{
+		tabCnt = 1;
+		checkTabRowData(0);
+	}
+	else
+	{
+		k = 0;
+
+		while (k < tabCnt)
+		{
+			tabData[k] = [];
+			(tabData[k])[0] = userReadVar('s'+i+'_t0'+k);
+			(tabData[k])[1] = userReadVar('s'+i+'_t1'+k);
+			(tabData[k])[2] = userReadVar('s'+i+'_t2'+k);
+			(tabData[k])[3] = userReadVar('s'+i+'_t3'+k);
+			k++;
+		}
+	}
+	
+	tabsel = 1;
+
+	restorePageData();
+	
+	writeBody();
+}
+
+function doSaveAll()
+{
+	storePageData();
+
+	var i = 0;
+	while (userReadVar('s'+i+'_state') == "ok")
+	{
+		i++;
+	}
+	
+	userSaveVar('s'+i+'_state', 'ok');
+	
+	var k;
+	
+	k = 0;
+	while (k < inpCnt)
+	{
+		userSaveVar('s'+i+'_d'+k, inpData[k]);
+		k++;
+	}
+	
+	userSaveVar('s'+i+'_tcnt', ''+tabCnt);
+	
+	k = 0;
+	while (k < tabCnt)
+	{
+		userSaveVar('s'+i+'_t0'+k, (tabData[k])[0]);
+		userSaveVar('s'+i+'_t1'+k, (tabData[k])[1]);
+		userSaveVar('s'+i+'_t2'+k, (tabData[k])[2]);
+		userSaveVar('s'+i+'_t3'+k, (tabData[k])[3]);
+		k++;
+	}
+	
+	writeBody();
+}
+
+function savedDivPara(saveopt)
+{
+	var s = '';
+	var n;
+	var i;
+	var t;
+	
+	if (saveopt)
+	{
+		s +=
+			'<div'+divHeader+'>'+pageStrings[27]+'</div>'
+			+inpDivPara(12)
+			+btnDivPara('doSaveAll();', pageStrings[29]);
+	}
+	
+	s += '<div'+divHeader+'>'+pageStrings[19]+'</div>';
+	
+	n = 0;
+	i = 0;
+	
+	t = userReadVar('s'+i+'_state');
+	while (t != "")
+	{
+		if (t == "ok")
+		{
+			t = pageStrings[47]+' '+userReadVar('s'+i+'_d'+12);
+			s +=
+				'<div'+divPara+'>'
+				+t
+					+' <span onclick="delSaved('+i+');"'+spanLink+'>'
+						+pageStrings[45]
+					+'</span>'
+					+' <span onclick="restoreSaved('+i+');"'+spanLink+'>'
+						+pageStrings[46]
+					+'</span>'
+				+'</div>';
+			n++;
+		}
+		i++;
+		t = userReadVar('s'+i+'_state');
+	}
+	
+	if (n < 1) s += '<div'+divPara+'>'+pageStrings[20]+'</div>';
+	
+	return s;
+}
+
+function inpDivPara(i)
+{
+	var s =
+		'<div'+divPara+'>'
+			+firstLetterUppercase(inpDes[i])+':'
+			+'<br/>'
+			+'<input type="text" style="border:1px dashed rgb(150,150,150);width:80%;margin-top:3px" id="inp'+i+'" value="'+inpData[i]+'" />'
+		+'</div>';
+	
+	return s;
+}
+	
+function initPg()
+{
+	var tsrc = document.body.getElementsByTagName("p");
+	var t = [];
+	var i = 1;
+	while (tsrc[i])
+	{
+		t[i-1] = tsrc[i].innerHTML;
+		i++;
+	}
+	
+	i = 0;
+	while (i < inpCnt)
+	{
+		inpData[i] = "";
+		
+		if (i < 6) inpDes[i] = t[i+9];
+		else if (i < 9) inpDes[i] = t[i+3];
+		else if (i == 12) inpDes[i] = t[28];
+		else if (i <= 12) inpDes[i] = t[i+6];
+		else inpDes[i] = t[i+23];
+		
+		i++;
+	}
+	
+	inpData[3] = t[23];
+	inpData[9] = t[22];
+	
+	tabTitles[0] = t[3];
+	tabTitles[1] = t[4];
+	tabTitles[2] = t[6];
+	tabTitles[3] = t[7];
+	
+	pageStrings = t;
+}
+
+function filledPrintDiv(fpdContent, fpdSub)
+{
+	var s = "";
+	
+	if (fpdContent == "") fpdContent = "-";
+
+	s +=
+		'<div style="text-align:center;border-bottom:1pt solid rgb(180,180,180);overflow:hidden;margin-top:2pt'+((fpdSub == "") ? ';margin-bottom:5pt' : '')+'">'
+			+fpdContent
+		+'</div>';
+	
+	if (fpdSub != "")
+	{
+		s +=
+			'<div style="font-size:5pt;text-align:center">'
+				+fpdSub
+			+'</div>';
+	}
+		
+	return s;
+}
+
+function filledPrintDivNr(fpdNr)
+{
+	var s = filledPrintDiv(inpData[fpdNr], inpDes[fpdNr]);
+	return s;
+}
+
+function percentLeftColumn(plcP, plcL, plcR)
+{
+	var s =
+		'<div><div style="float:right;width:'+(100-plcP-1)+'%">'
+			+plcR
+		+'</div>';
+
+	s += '<div style="width:'+(plcP-1)+'%">';
+	
+	s +=
+		plcL
+		+'</div>'
+		+'<div style="clear:both;height:0"></div></div>';
+		
+	return s;
+}
+
+function tableBegin(colData, colDataSub, colWidth)
+{
+	var s = '<table style="width:100%;table-layout:fixed;margin-top:11pt;font-size:inherit">'+
+		'<tbody style="font-size:inherit"><tr style="font-size:inherit">';
+	var i;
+	var j = 0;
+	i = 0;
+	while (colData[i])
+	{
+		if (!colWidth[i]) colWidth[i] = 1;
+		j += colWidth[i];
+		if (!(colData[i+1])) colWidth[i] = 100-j;
+		
+		s += '<td '+((colDataSub[i] == '') ? ' rowspan="2"' : '')+
+			' style="font-size:inherit;'+((i==0)?'border-left:1pt solid rgb(180,180,180);':'')+
+			'border-right:1pt solid rgb(180,180,180);border-top:1pt solid rgb(180,180,180)'+
+			((colDataSub[i] == '') ? ';border-bottom:1pt solid rgb(120,120,120)' : '')+
+			';text-align:center;width:'+colWidth[i]+
+			'%;padding:3pt 2pt 1pt 2pt;overflow:hidden">'+colData[i]+'</td>';
+		i++;
+	}
+	s += '</tr><tr style="font-size:inherit">';
+	i = 0;
+	while (colData[i])
+	{
+		if (colDataSub[i] != "")
+		{
+			s += '<td style="font-size:inherit;'+((i==0)?
+			'border-left:1pt solid rgb(180,180,180);':'')+
+			'border-right:1pt solid rgb(180,180,180);border-bottom:1pt '+
+			'solid rgb(120,120,120);text-align:center;width:'+
+			colWidth[i]+'%;padding:0 2pt 1pt 2pt;overflow:hidden;'+
+			'font-size:smaller;vertical-align:bottom">'+colDataSub[i]+'</td>';
+		}
+		i++;
+	}
+	s += '</tr>';
+	return s;
+}
+
+function tableRow(colData)
+{
+	var s = '<tr>';
+	var i = (colData[0] == '') ? 1 : 0;
+	while (colData[i])
+	{
+		s += '<td'+(((colData[0] == '') && (i == 1)) ? ' colspan="2"' : '')+' style="'+((i==0)?'border-left:1pt solid rgb(180,180,180);':'')+'border-right:1pt solid rgb(180,180,180)'+(((colData[0] == '') && (i == 1)) ? '' : ';border-bottom:1pt solid rgb(180,180,180)')+';padding:1pt 2pt 1pt 2pt;overflow:hidden">'+colData[i]+'</td>';
+		i++;
+	}
+	s += '</tr>';
+	return s;
+}
+
+function tableEnd()
+{
+	var s = '</tbody></table>';
+	return s;
+}
+
+function checkTabRowData(nr)
+{
+	if (!(tabData[nr])) tabData[nr] = ['', '0', '00', '0'];
+}
+
+function tableCalculations()
+{
+	tableCalculationsData = [];
+	var i = 0;
+	var n;
+	var o;
+	var s1 = 0;
+	var s2 = 0;
+	var s3 = 0;
+	while (i < tabCnt)
+	{
+		checkTabRowData(i);
+		if ((tabData[i])[2] != '00')
+		{
+			alert((tabData[i])[2] + ' / ' + (tabData[i])[0]);
+			return 0;
+		}
+		
+		tableCalculationsData[i] = [(tabData[i])[1], (tabData[i])[2], '', '', '', ''];
+		s1 += 100 * parseInt((tableCalculationsData[i])[0]);
+		
+		n = parseInt((tableCalculationsData[i])[0]) * parseInt((tabData[i])[3]);
+		s2 += n;
+		
+		o = ''+n;
+		while (o.length < 3) o = '0'+o;
+		(tableCalculationsData[i])[2] = o.substr(0, o.length-2);
+		(tableCalculationsData[i])[3] = o.charAt(o.length-2)+o.charAt(o.length-1);
+		
+		n += 100*parseInt((tabData[i])[1]);
+		s3 += n;
+		
+		o = ''+n;
+		while (o.length < 3) o = '0'+o;
+		(tableCalculationsData[i])[4] = o.substr(0, o.length-2);
+		(tableCalculationsData[i])[5] = o.charAt(o.length-2)+o.charAt(o.length-1);
+	 
+		i++;
+	}
+	
+	tableCalculationsData[i] = ['', '', '', '', '', ''];
+	
+	o = ''+s1;
+	while (o.length < 3) o = '0'+o;
+	(tableCalculationsData[i])[0] = o.substr(0, o.length-2);
+	(tableCalculationsData[i])[1] = o.charAt(o.length-2)+o.charAt(o.length-1);
+	
+	o = ''+s2;
+	while (o.length < 3) o = '0'+o;
+	(tableCalculationsData[i])[2] = o.substr(0, o.length-2);
+	(tableCalculationsData[i])[3] = o.charAt(o.length-2)+o.charAt(o.length-1);
+	
+	o = ''+s3;
+	while (o.length < 3) o = '0'+o;
+	(tableCalculationsData[i])[4] = o.substr(0, o.length-2);
+	(tableCalculationsData[i])[5] = o.charAt(o.length-2)+o.charAt(o.length-1);
+	
+	return 1;
+}
+
+function invoicePrint(ver)
+{
+	if (!tableCalculations()) return;
+	
+	var defaultFontSize = '8pt';
+	var topinfoFontSize = '8pt';
+	var titleFontSize = '12pt';
+	var subtitleFontSize = '10pt';
+	var bigFontSize = '9pt';
+	
+	var r = '<div id="printmode" style="font-family:sans-serif;font-size:'+defaultFontSize+';color:rgb(0,0,0);cursor:pointer;" onclick="writeBody();">';
+ 
+	r +=
+		percentLeftColumn
+		(
+			70,
+			'<div style="text-align:center;font-size:'+titleFontSize+';padding-left:42%">'
+				+pageStrings[38]+' '+inpData[13]
+			+'</div>'
+			+'<div style="text-align:center;font-size:'+subtitleFontSize
+									+';font-weight:bold;margin-top:8pt;margin-bottom:6pt;padding-left:42%">'
+				+((ver==2)?pageStrings[40]:pageStrings[39])
+			+'</div>',
+			filledPrintDivNr(14)
+		)
+		
+		+percentLeftColumn
+		(
+			18,
+			'<div style="font-size:'+bigFontSize+';font-weight:bold;margin-top:3pt">'
+				+pageStrings[41]
+			+'</div>',
+			filledPrintDivNr(0)
+		)
+		+'<div style="padding-left:2%;font-size:'+topinfoFontSize+'">'
+			+percentLeftColumn
+			(
+				70,
+				filledPrintDivNr(1),
+				filledPrintDivNr(2)
+			)
+			+percentLeftColumn
+			(
+				50,
+				percentLeftColumn
+				(
+					35,
+					'<div style="margin-top:3pt">'
+						+firstLetterUppercase(inpDes[3])
+					+'</div>',
+					filledPrintDiv(inpData[3], "")
+				),
+				percentLeftColumn
+				(
+					40,
+					'<div style="margin-top:3pt">'
+						+inpDes[4]
+					+'</div>',
+					filledPrintDiv("", "")
+				)
+			)
+			+filledPrintDiv(inpData[4], "")
+			+percentLeftColumn
+			(
+				50,
+				percentLeftColumn
+				(
+					50,
+					'<div style="margin-top:3pt">'
+						+firstLetterUppercase(inpDes[5])
+					+'</div>',
+					filledPrintDiv(inpData[5], "")
+				),
+				percentLeftColumn
+				(
+					40,
+					'<div style="margin-top:3pt">'
+						+firstLetterUppercase(inpDes[11])
+					+'</div>',
+					filledPrintDiv(inpData[11], "")
+				)
+			)
+		+'</div>'
+		
+		
+		
+		+percentLeftColumn
+		(
+			18,
+			'<div style="font-size:'+bigFontSize+';font-weight:bold;margin-top:3pt">'
+				+pageStrings[42]
+			+'</div>',
+			filledPrintDivNr(6)
+		)
+		+'<div style="padding-left:2%;font-size:'+topinfoFontSize+'">'
+			+percentLeftColumn
+			(
+				70,
+				filledPrintDivNr(7),
+				filledPrintDivNr(8)
+			)
+		+'</div>'
+		
+		
+		+'<div style="font-size:'+topinfoFontSize+'">'
+			+percentLeftColumn
+			(
+				40,
+				'<div style="margin-top:3pt">'
+					+firstLetterUppercase(inpDes[10])
+				+'</div>',
+				filledPrintDiv(inpData[10], "")
+			)
+			
+			
+			+percentLeftColumn
+			(
+				12,
+				'<div style="margin-top:3pt">'
+					+firstLetterUppercase(inpDes[9])
+				+'</div>',
+				filledPrintDiv(inpData[9], "")
+			)
+		+'</div>';
+	
+	r +=
+		tableBegin
+		(
+			[
+				pageStrings[48],
+				pageStrings[49],
+				pageStrings[50],
+				pageStrings[51],
+				pageStrings[52]
+			],
+			[
+				'',
+				'',
+				percentLeftColumn
+				(
+					66,
+					pageStrings[53],
+					'<div style="border-left:1pt dashed rgb(200,200,200)">'
+						+pageStrings[54]
+					+'</div>'
+				),
+				percentLeftColumn
+				(
+					36,
+					'<div style="overflow:hidden">'
+						+pageStrings[55]
+					+'</div>',
+					'<div style="border-left:1pt dashed rgb(200,200,200);overflow:hidden">'
+						+pageStrings[56]
+						+percentLeftColumn
+						(
+							66,
+							pageStrings[53],
+							'<div style="border-left:1pt dashed rgb(200,200,200)">'
+								+pageStrings[54]
+							+'</div>'
+						)
+					+'</div>'
+				),
+				percentLeftColumn
+				(
+					66,
+					pageStrings[53],
+					'<div style="border-left:1pt dashed rgb(200,200,200)">'
+						+pageStrings[54]
+					+'</div>'
+				)
+			],
+			[
+				5,
+				50,
+				14,
+				17
+			]
+		);
+		
+	var i = 0;
+	var f;
+	var g;
+	var h;
+	var k;
+	while (i <= tabCnt)
+	{
+		f = tableCalculationsData[i];
+		f[1] = minNumStrLen(''+f[1], 2);
+		f[3] = minNumStrLen(''+f[3], 2);
+		f[5] = minNumStrLen(''+f[5], 2);
+		
+		if (i < tabCnt)
+		{
+			g = (tabData[i])[0];
+			if (g == '') g = '-';
+			h = '<div style="text-align:right">'+(i+1)+'</div>';
+			k = (tabData[i])[3];
+		}
+		else
+		{
+			g =
+				'<div style="text-align:right;font-weight:bold;padding-right:1em">'
+					+pageStrings[62]
+				+'</div>';
+			h = '';
+			k = '-';
+		}
+		
+		r += tableRow
+		(
+			[
+				h,
+				g,
+				percentLeftColumn
+				(
+					66,
+					'<div style="text-align:right">'
+						+(f[0])
+					+'</div>',
+					'<div style="border-left:1pt dashed rgb(200,200,200);text-align:right">'
+						+(f[1])
+					+'</div>'
+				),
+				percentLeftColumn
+				(
+					36,
+					'<div style="text-align:right">'
+						+k
+					+'</div>',
+					'<div style="border-left:1pt dashed rgb(200,200,200)">'
+						+percentLeftColumn
+						(
+							66,
+							'<div style="text-align:right">'
+								+(f[2])
+							+'</div>',
+							'<div style="border-left:1pt dashed rgb(200,200,200);text-align:right">'
+								+(f[3])
+							+'</div>'
+						)
+					+'</div>'
+				),
+				percentLeftColumn
+				(
+					66,
+					'<div style="text-align:right">'
+						+(f[4])
+					+'</div>',
+					'<div style="border-left:1pt dashed rgb(200,200,200);text-align:right">'
+						+(f[5])
+					+'</div>'
+				)
+			]
+		);
+		
+		i++;
+	}
+		
+	r += tableEnd();
+	
+	r +=
+		'<div style="margin-top:9pt">'
+			+percentLeftColumn
+			(
+				18,
+				'<div style="font-size:'+bigFontSize+';font-weight:bold;margin-top:3pt">'
+					+pageStrings[63]
+				+'</div>',
+				filledPrintDiv
+				(
+					((tableCalculationsData[tabCnt])[4])+' '+(pageStrings[53])+' '
+					+((tableCalculationsData[tabCnt])[5])+' '+(pageStrings[54]),
+					''
+				)
+			)
+		+'</div>';
+	
+	r += filledPrintDiv
+	(
+		plKwotaSlownieZlGl
+		(
+			((tableCalculationsData[tabCnt])[4]),
+			((tableCalculationsData[tabCnt])[5])
+		),
+		pageStrings[64]
+	);
+	
+	r +=
+		'<div style="margin-top:40pt">'
+			+percentLeftColumn
+			(
+				50,
+				'<div style="padding-left:20%;padding-right:20%">'
+					+filledPrintDiv
+					(
+						' ',
+						pageStrings[65]
+					)
+				+'</div>',
+				'<div style="padding-left:20%;padding-right:20%">'
+					+filledPrintDiv
+					(
+						' ',
+						pageStrings[66]
+					)
+				+'</div>'
+			)
+		+'</div>';
+			
+	r += '</div>';
+	
+	try {
+		var win = window.open('', 'Do wydruku'); // menubar=yes
+		win.document.open();
+		win.document.write('<html><body onload="window.print()">'+
+			r+'</body></html>'); 
+		win.document.close();
+	} catch (err) {
+		alert('Błąd! '+err);
+	}
+}
+
+function genTabIndex()
+{
+	var s = '<div style="max-width:60em">';
+	
+	var w = [60, 10, 8, 8];
+	var t = [pageStrings[49],pageStrings[57],pageStrings[58],pageStrings[59]];
+	
+	var i = 0;
+	
+	while (i < 4)
+	{
+		s += '<input type="text" readonly="readonly" style="border:1px solid rgb(255,255,255);font-size:smaller;width:'+w[i]+'%;margin:3px 8px 0 0" value="'+t[i]+'" />';
+		i++;
+	}
+	
+	s += '</div>';
+	
+	return s;
+}
+
+function genTabRowInner(nr)
+{
+	var s = '';
+	
+	var w = [60, 10, 8, 8];
+	
+	var i = 0;
+	
+	checkTabRowData(nr);
+		
+	while (i < 4)
+	{
+		s += '<input type="text"'+((i > 1) ? ' maxlength="2"' : '')+((i==2)?' readonly="readonly"':'')+' style="border:1px dashed rgb(150,150,150);width:'+w[i]+'%;margin:3px 8px 0 0" value="'+((tabData[nr])[i])+'" />';
+		i++;
+	}
+	
+	return s;
+}
+
+function genTabRow(nr)
+{
+	var s =
+		'<div id="tab'+nr+'" style="max-width:60em">'
+			+genTabRowInner(nr)
+		+'</div>';
+	return s;
+}
+
+function moreTabRows()
+{
+	storePageTabData();
+	tabCnt++;
+	tabData[tabCnt-1] = tabData[tabCnt-2];
+	writeBody();
+}
+
+function lessTabRows()
+{
+	if (tabCnt > 1)
+	{
+		tabCnt--;
+		writeBody();
+	}
+}
+
+function writeBody()
+{
+	storePageData();
+	
+	var i;
+	
+	var spanTab = ' style="display:inline-block;padding:5px 15px 5px 15px;margin-right:10px;'+
+		'border:1px solid rgb(140,140,140);background:rgb(230,230,240);'+
+		'border-bottom:none;font-size:12px"';
+	
+	var tabsHtml = "";
+	i = 0;
+	while (i < 4)
+	{
+		if (i == tabsel)
+		{
+			tabsHtml +=
+				'<div style="display:inline-block;position:relative;margin-right:10px;'+
+				'border:1px solid rgb(140,140,140);border-bottom:none">'+
+					'<div style="position:absolute;background:white;width:100%;height:30px"></div>'+
+					'<div style="position:relative;padding:5px 15px 5px 15px;font-size:12px">'+tabTitles[i]+'</div>'+
+				'</div>';
+		}
+		else
+		{
+			tabsHtml +=
+				'<span'+spanTab+'>'
+					+'<span onclick="tabsel='+i+';writeBody();"'+spanLink+'>'
+						+tabTitles[i]
+					+'</span>'
+				+'</span>';
+		}
+		i++;
+	}
+	
+	var tabContent = " ";
+	
+	if (tabsel == 0)
+	{
+		tabContent =
+			'<div'+divHeader+'>'+pageStrings[0]+'</div>'
+			+'<div'+divPara+'>'+pageStrings[1]+'</div>'
+			+'<div'+divPara+'>'+pageStrings[2]+'</div>'
+			+savedDivPara(0)
+			+'<div'+divPara+'>'+pageStrings[21]+'</div>'	
+			+'<div'+divHeader+'>'+pageStrings[24]+'</div>'
+			+'<div'+divPara+'>'+pageStrings[25]+'</div>'
+			+'<div'+divPara+'>'+pageStrings[26]+'</div>';
+	}
+	
+	if (tabsel == 1)
+	{
+		tabContent =
+			'<div'+divHeader+'>'+pageStrings[8]+'</div>';
+		
+		i = 0;
+		while (i < 5)
+		{
+			if (i == 3)
+			{
+				tabContent +=
+					'<div'+divHeader+'>'+firstLetterUppercase(pageStrings[12])+'</div>';
+			}
+			tabContent += inpDivPara(i);
+			i++;
+		}
+		
+		tabContent +=
+			'<div'+divHeader+'>'+pageStrings[5]+'</div>';
+		
+		i = 6;
+		while (i < 10)
+		{
+			tabContent += inpDivPara(i);
+			i++;
+		}
+	}
+	
+	if (tabsel == 2)
+	{
+		tabContent =
+			inpDivPara(13)
+			+inpDivPara(14)
+			+inpDivPara(5)
+			+inpDivPara(10)
+			+inpDivPara(11)
+			+'<div'+divHeader+'>'+pageStrings[6]+'</div>';
+			
+		tabContent += genTabIndex();
+		
+		i = 0;
+		while (i < tabCnt)
+		{
+			tabContent += genTabRow(i);
+			i++;
+		}
+		
+		tabContent += btnDivPara('moreTabRows();', pageStrings[60]);
+		if (tabCnt > 1)
+		{
+			tabContent += btnDivPara('lessTabRows();', pageStrings[61]);
+		}
+	}
+	
+	if (tabsel == 3)
+	{
+		tabContent =
+			'<div'+divHeader+'>'+pageStrings[30]+'</div>'
+			+'<div'+divPara+'>'+pageStrings[32]+'</div>'
+			+'<div'+divPara+'>'+pageStrings[33]+'</div>'
+			+'<div'+divPara+'>'+pageStrings[44]+'</div>'
+			+btnDivPara('invoicePrint(1);', pageStrings[34])
+			+btnDivPara('invoicePrint(2);', pageStrings[35])
+			+'<div'+divPara+'>'+pageStrings[31]+'</div>'
+			+savedDivPara(1);
+	}
+	
+	document.body.style.background = "rgb(200,200,255)";
+	document.body.innerHTML =
+		'<div style="font-family:sans-serif;font-size:14px;color:rgb(30,30,30);cursor:default;">'
+			+'<div style="margin-top:10px">'
+				+tabsHtml
+			+'</div>'
+			+'<div style="padding:15px;border:1px solid rgb(140,140,140);background:rgb(255,255,255)">'
+				+tabContent
+			+'</div>'
+			+'<div style="font-size:smaller;text-align:center">'
+				+pageStrings[43]
+			+'</div>'
+		+'</div>';
+}
+
+userSaveVar('savingworks', 'yes');
+initPg();
+if (userReadVar('savingworks') === 'yes') {
+	writeBody();
+	checkTabRowData(0);
+} else {
+	document.body.innerHTML = '<p style="font-size:20px;color:red">'+
+		'Twoja przeglądarka nie obsługuje zapisywania danych!</p>'+
+		'<p style="font-size:20px">Aby użyć tego programu, '+
+		'potrzebna jest nowoczesna przeglądarka, '+
+		'na przykład Firefox 3.6, Opera 10.5 albo Chrome 6.</p>';
+}
+
+// ]]>
+</script>
+
+</body>
+</html>
+

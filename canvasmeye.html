@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Canvas Magic Eye</title>
+	<style type="text/css">
+		body { margin: 0; overflow: hidden }
+		p { margin: 10px 0 }
+		a { color: #bbf }
+		nav { position: absolute; right: 0; top: 0;
+			width: 350px; background: #000;
+			opacity: 0.8; padding: 0 20px; color: #fff;
+			font-family: monospace; font-size: 12px }
+		div#error { position: absolute; width: 30%; left: 35%;
+			top: 50%; padding: 10px; border: 1px solid #633;
+			background: #fdd; margin-top: -50px;
+			font-size: 16px; font-weight: bold; color: #422 }
+	</style>
+</head>
+<body>
+	<canvas id="view"></canvas>
+	<div id="error">
+		Error: This application requires JavaScript to run.
+	</div>
+	<nav>
+		<p>
+			Relax your eyes and try to see a three-dimensional image.
+		</p>
+		<p>
+			The code is open-source, see more at
+			<a href="http://guciek.github.com"
+				>http://guciek.github.com</a>.
+		</p>
+	</nav>
+	<script>
+
+// Copyright by Karol Guciek (http://guciek.github.com)
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2 or 3.
+
+function error(msg) {
+	try {
+		var div = document.getElementById("error");
+		if (msg) {
+			div.style.display = "block";
+			div.innerText = "Error: "+msg;
+		} else {
+			div.style.display = "none";
+		}
+	} catch(e) {
+		if (msg) { alert("Error: "+msg); }
+	}
+}
+
+function draw(w, h) {
+	var r = w, c, templ_w = 100, templ, drawy = 0,
+		last_frame = 0, lines_per_frame = 1;
+	if (h < w) { r = h; }
+	r *= 0.5;
+	try {
+		c = document.getElementById("view").getContext("2d");
+	} catch(err) {
+		throw "Your web browser does not support "+
+			"the <canvas> element!";
+	}
+	c.canvas.width = w;
+	c.canvas.height = h;
+	function template(w, h) {
+		var c = document.createElement("canvas").getContext("2d"),
+			i, x, y, f;
+		c.canvas.width = w;
+		c.canvas.height = h;
+		c.fillStyle = "rgb(255,255,255)";
+		c.fillRect(0, 0, w, h);
+		for (i = 0; i < (w*h/30); i++) {
+			x = Math.random()*w;
+			y = Math.random()*h;
+			f = (Math.sin(3*y/h)+1)*0.5;
+			c.fillStyle = "rgb("+
+				Math.floor(Math.random()*256*f)+","+
+				Math.floor(Math.random()*256)+","+
+				Math.floor(Math.random()*256*(1-f))+")";
+			c.beginPath();
+			c.arc(x-w, y, 5, 0, 2*Math.PI, false);
+			c.fill();
+			c.beginPath();
+			c.arc(x, y, 5, 0, 2*Math.PI, false);
+			c.fill();
+			c.beginPath();
+			c.arc(x+w, y, 5, 0, 2*Math.PI, false);
+			c.fill();
+		}
+		return c;
+	}
+	templ = template(templ_w, h);
+	function height(x, y) {
+		var mdist = Math.sqrt((y-h/2)*(y-h/2) + (x-w/2)*(x-w/2)),
+			ret = 0;
+		if (mdist < r*0.3) {
+			ret = 0.5+Math.sqrt(r*r*0.09-mdist*mdist)/300;
+		} else if (mdist > r*0.8) {
+			mdist /= r;
+			mdist -= 0.8;
+			mdist /= 6;
+			if (mdist > 0.1) { mdist = 0.1; }
+			ret = (Math.sin(x*0.03)*Math.sin(y*0.03)+1)*mdist;
+		} else if (mdist > r*0.6) {
+			ret = 1;
+		}
+		if (ret < 0.0) { ret = 0.0; }
+		if (ret > 1.0) { ret = 1.0; }
+		if (x < templ_w) {
+			ret *= x/templ_w;
+		}
+		if (x > w-templ_w) {
+			ret *= (w-x)/templ_w;
+		}
+		return ret;
+	}
+	function line_filler(y) {
+		var source = templ.getImageData(0, y, templ_w, 1),
+			dest = c.getImageData(0, y, w, 1), xf, xm;
+		function set_pixel(sx, dx) {
+			if (sx < 0) { return; }
+			if (sx >= templ_w) { return; }
+			dx = Math.floor(dx);
+			if (dx < 0) { return; }
+			if (dx >= w) { return; }
+			xf = Math.floor(sx);
+			xm = sx-xf;
+			xf *= 4;
+			function s(f) {
+				if (f >= templ_w*4) { return source.data[f-templ_w*4]; }
+				return source.data[f];
+			}
+			dest.data[4*dx] = s(xf) + xm*(s(xf+4)-s(xf));
+			dest.data[4*dx+1] = s(xf+1) + xm*(s(xf+5)-s(xf+1));
+			dest.data[4*dx+2] = s(xf+2) + xm*(s(xf+6)-s(xf+2));
+			dest.data[4*dx+3] = 255;
+		}
+		function save() {
+			c.putImageData(dest, 0, y);
+		}
+		return {
+			set_pixel : set_pixel,
+			save : save
+		};
+	}
+	function line_pixel_copier(y) {
+		var l = line_filler(y), from = [], i;
+		for (i = 0; i <= w+1; i++) {
+			from[i] = 0;
+		}
+		function pick_from(x) {
+			var xf = Math.floor(x), xm, d;
+			xm = x-xf;
+			d = from[xf+1]-from[xf];
+			if (d < -templ_w/2) { d += templ_w; }
+			if (d > templ_w/2) { d -= templ_w; }
+			return from[xf]+xm*d;
+		}
+		function copy(x1, x2) {
+			if (x1 < 0) {
+				from[x2] = x1;
+			} else {
+				from[x2] = pick_from(x1);
+			}
+			while (from[x2] < 0) { from[x2] += templ_w; }
+			while (from[x2] >= templ_w) { from[x2] -= templ_w; }
+			l.set_pixel(from[x2], x2);
+		}
+		function fill_stripe(x, w, similar) {
+			var s = pick_from(similar), m = Math.round(w/2),
+				i, direction = 1;
+			if (s > templ_w/2) { direction = -1; }
+			for (i = 0; i < m; i++) {
+				from[x+i] = s+i*direction;
+				l.set_pixel(from[x+i], x+i);
+			}
+			for (i = m; i < w; i++) {
+				from[x+i] = s+(w-i)*direction;
+				l.set_pixel(from[x+i], x+i);
+			}
+		}
+		return {
+			copy : copy,
+			fill_stripe : fill_stripe,
+			save : l.save
+		};
+	}
+	function draw_line(y) {
+		function source(x) {
+			return x - (1.0-height(x, y)*0.2)*templ_w;
+		}
+		var l = line_pixel_copier(y), x = 0, based = -templ_w, d, x1;
+		while (x < w) {
+			d = source(x);
+			if (d >= based) {
+				based = d;
+				l.copy(d, x);
+				x++;
+			} else {
+				x1 = x;
+				x++;
+				while ((x < w) && (source(x) < based)) {
+					x++;
+				}
+				l.fill_stripe(x1, x-x1+1, based);
+			}
+		}
+		l.save();
+	}
+	function draw_frame() {
+		if (drawy >= h) { return false; }
+		var time = (new Date().getTime())*0.001, i;
+		if (time-last_frame < 1/10) { lines_per_frame *= 2; }
+		last_frame = time;
+		for (i = 0; i < lines_per_frame; i++) {
+			if (drawy >= h) { break; }
+			draw_line(drawy);
+			drawy++;
+		}
+		return true;
+	}
+	return {
+		draw: draw_frame
+	};
+}
+
+function timer() {
+	var d = null;
+	window.onresize = function() { d = null; };
+	function step() {
+		try {
+			if (d) {
+				setTimeout(step, d.draw() ? 0 : 200);
+			} else {
+				d = draw(window.innerWidth,
+					window.innerHeight);
+				setTimeout(step, 1);
+			}
+			error();
+		} catch (err) {
+			error(err);
+		}
+	}
+	setTimeout(step, 1);
+	error();
+}
+
+timer();
+
+	</script>
+</body>
+</html>

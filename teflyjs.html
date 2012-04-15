@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Terrain Fly JS</title>
+	<style type="text/css">
+		body { margin: 0; overflow: hidden }
+		p { margin: 10px 0 }
+		a { color: #bbf }
+		nav { position: absolute; right: 0; top: 0;
+			width: 350px; background: #000;
+			opacity: 0.8; padding: 0 20px; color: #fff;
+			font-family: monospace; font-size: 12px }
+		div#error { position: absolute; width: 30%; left: 35%;
+			top: 50%; padding: 10px; border: 1px solid #633;
+			background: #fdd; margin-top: -50px;
+			font-size: 16px; font-weight: bold; color: #422 }
+	</style>
+</head>
+<body>
+	<canvas id="view"></canvas>
+	<div id="error">
+		Error: This application requires JavaScript to run.
+	</div>
+	<nav>
+		<p>
+			High performance rendering of 3D terrain in JavaScript.
+		</p>
+		<p>
+			The code is open-source, see more at
+			<a href="http://guciek.github.com"
+				>http://guciek.github.com</a>.
+		</p>
+	</nav>
+	<script>
+
+// Copyright by Karol Guciek (http://guciek.github.com)
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, version 2 or 3.
+
+function error(msg) {
+	try {
+		var div = document.getElementById("error");
+		if (msg) {
+			div.style.display = "block";
+			div.innerText = "Error: "+msg;
+		} else {
+			div.style.display = "none";
+		}
+	} catch(e) {
+		if (msg) { alert("Error: "+msg); }
+	}
+}
+
+function app() {
+	var W, H, w = 400, h = 300, t = 0, camry = 0, camrx = 0,
+		view, terrdraw = [], a;
+	try {
+		view = document.getElementById('view').getContext('2d');
+	} catch(err) {
+		throw "Your web browser does not support "+
+			"the <canvas> element!";
+	}
+	function resize() {
+		W = window.innerWidth;
+		H = window.innerHeight;
+		h = Math.round(400*H/W);
+		view.canvas.width = w;
+		view.canvas.height = h;
+		view.canvas.style.width = W+'px';
+		view.canvas.style.height = H+'px';
+	}
+	resize();
+	window.onresize = resize;
+	function hei(x, z) {
+		return (Math.sin(x)*Math.cos(x*1.11))+
+			Math.sin(z*0.8+Math.sin(x*1.33))*0.4-1.5;
+	}
+	function terrdrawfun(dir) {
+		var code = 'var x, y, z, a, s1=Math.sin(cry), c1=Math.cos(cry), '+
+			's2=Math.sin(crx), c2=Math.cos(crx);',
+			m = 'a=c1*x-s1*z;z=c1*z+s1*x;x=a;a=c2*y-s2*z;z=c2*z+s2*y;'+
+			'if(z>0.2){y=a;x*=1/z;y*=1/z;x=x*(h)+w/2;y=h/2-y*(h);',
+			size = 1, x, z, a;
+		function rect(x, z) {
+			var v = hei((x+z)*3, (z-x)*3)+1.5;
+			if (!v) { v = 0; }
+			v = v*15 + 50;
+			v = Math.floor(Math.min(100, Math.max(0, v)));
+			code += 'view.beginPath();';
+			code += "view.fillStyle = 'rgb("+
+				v+","+Math.floor(v*1.5)+","+v+")';";
+			function pt(dx, dz) {
+				code += 'x='+(x+dx*(0.06+size/2))+'-cx;';
+				code += 'y='+hei(x+dx*size/2, z+dz*size/2)+'-cy;';
+				code += 'z='+(z+dz*(0.06+size/2))+'-cz;';
+			}
+			pt(-1, -1);
+			code += m+'view.moveTo(x,y);';
+			pt(1, -1);
+			code += m+'view.lineTo(x,y);';
+			pt(1, 1);
+			code += m+'view.lineTo(x,y);';
+			pt(-1, 1);
+			code += m+'view.lineTo(x,y);view.fill();}}}}';
+		}
+		if (dir === 0) {
+			for (z = 10; z > -10.1; z -= size) {
+				for (x = -10; x < 10.1; x += size) {
+					rect(x, z);
+				}
+			}
+		} else if (dir === 1) {
+			for (x = 10; x > -10.1; x -= size) {
+				for (z = 10; z > -10.1; z -= size) {
+					rect(x, z);
+				}
+			}
+		} else if (dir === 2) {
+			for (z = -10; z < 10.1; z += size) {
+				for (x = -10; x < 10.1; x += size) {
+					rect(x, z);
+				}
+			}
+		} else if (dir === 3) {
+			for (x = -10; x < 10.1; x += size) {
+				for (z = 10; z > -10.1; z -= size) {
+					rect(x, z);
+				}
+			}
+		}
+		eval('a=function(cx,cy,cz,cry,crx){'+code+'};');
+		return a;
+	}
+	for (a = 0; a < 4; a++) {
+		terrdraw[a] = terrdrawfun(a);
+	}
+	setInterval(function() {
+		t += 0.05;
+		view.fillStyle = '#ccc';
+		view.fillRect(0, 0, w, h);
+		terrdraw[Math.round(camry/(Math.PI/2))%4](Math.cos(t*0.244)*5,
+			Math.sin(t)+1.7, Math.sin(t*0.2431)*5, camry, camrx);
+	}, 30);
+	document.addEventListener('mousemove', function(e) {
+		camry = 7*e.pageX/W;
+		camrx = -e.pageY/H;
+		if (camrx < -1) { camrx = -1; }
+		if (camrx > 0) { camrx = 0; }
+	}, false);
+}
+
+try {
+	app();
+	error();
+} catch(msg) {
+	error(msg);
+}
+
+	</script>
+</body>
+</html>
