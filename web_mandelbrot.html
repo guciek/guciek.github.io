@@ -122,7 +122,7 @@ function mandelbrot_draw(acontext, aw, ah, areal, aimag, aradius, amaxiter) {
 		return -1;
 	}
 	function palette(d) {
-		time += 50;
+		time += 20;
 		var v = Math.sin(d*0.1847969)*0.5+0.5;
 		return hsv2rgb({
 			h: d*0.00521336,
@@ -162,11 +162,10 @@ function mandelbrot_draw(acontext, aw, ah, areal, aimag, aradius, amaxiter) {
 	function draw_tile(x, y) {
 		var tilex = sx + x*tile;
 		var tiley = sy + y*tile;
-		var half = Math.floor(tile/2);
-		if (tilex+half < 0) { return; }
-		if (tiley+half < 0) { return; }
-		if (tilex-half >= w) { return; }
-		if (tiley-half >= h) { return; }
+		if (tilex+tile/2 < 0) { return; }
+		if (tiley+tile/2 < 0) { return; }
+		if (tilex-tile/2 >= w) { return; }
+		if (tiley-tile/2 >= h) { return; }
 		var rgb;
 		if (antialias) {
 			rgb = interpolate(
@@ -192,7 +191,8 @@ function mandelbrot_draw(acontext, aw, ah, areal, aimag, aradius, amaxiter) {
 			rgb = log_color(mandelbrot(mapped_point(tilex, tiley)));
 		}
 		c.fillStyle = html_color(rgb);
-		c.fillRect(tilex-half, tiley-half, tile, tile);
+		c.fillRect(Math.floor(tilex-tile/2), Math.floor(tiley-tile/2),
+			tile, tile);
 		time += 10;
 	}
 	function step() {
@@ -201,8 +201,9 @@ function mandelbrot_draw(acontext, aw, ah, areal, aimag, aradius, amaxiter) {
 				return false;
 			} else {
 				tile = Math.floor(tile/2);
-				if (tile < 1.2) {
+				if (tile < 3) {
 					antialias = true;
+					tile = 1;
 				}
 			}
 			sidestart = 0;
