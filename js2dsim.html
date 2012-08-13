@@ -304,19 +304,19 @@ function world() {
 	for (i in bodies) {
 		bodies[i].pin();
 	}
-	
+
 	function draw(c, minx, miny, maxx, maxy) {
 		var i, skyGradient = c.createLinearGradient(0, 5, 0, 0);
 		skyGradient.addColorStop(0, 'rgb(32,57,141)');
 		skyGradient.addColorStop(1, 'rgb(161,193,232)');
 		c.fillStyle = skyGradient;
 		c.fillRect(minx, miny, maxx-minx, maxy-miny);
-		
+
 		for (i in bodies) {
 			bodies[i].draw(c);
 		}
 	}
-	
+
 	function onClick(x, y) {
 		if (Math.random() < 0.3) {
 			bodies[bodies.length] = lightcircle(vect(x, y,
@@ -326,7 +326,7 @@ function world() {
 				Math.random()*2*Math.PI), 0.2);
 		}
 	}
-	
+
 	function collide(info, ob1, ob2) {
 		var normal = info.normal.normalize(), m,
 			i = ob2.velocityAt(info.point).substract(
@@ -348,7 +348,7 @@ function world() {
 		ob1.impulse(info.point, i.mult(m));
 		ob2.impulse(info.point, i.mult(-m));
 	}
-	
+
 	function step(t) {
 		var i, j, info;
 		for (i in bodies) {
@@ -374,7 +374,7 @@ function world() {
 			}
 		}
 	}
-	
+
 	return {
 		draw: draw,
 		step: step,
@@ -468,5 +468,5 @@ function timer() {
 timer();
 
 	</script>
-</body> 
+</body>
 </html>

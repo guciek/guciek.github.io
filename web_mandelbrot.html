@@ -122,7 +122,7 @@ function mandelbrot_draw(acontext, aw, ah, areal, aimag, aradius, amaxiter) {
 		return -1;
 	}
 	function palette(d) {
-		time += 20;
+		time += 100;
 		var v = Math.sin(d*0.1847969)*0.5+0.5;
 		return hsv2rgb({
 			h: d*0.00521336,
@@ -266,7 +266,7 @@ function hashlocation() {
 		ret.onuserchange();
 	}
 	setInterval(check, 250);
-	window.addEventListener("hashchange", check, false);  
+	window.addEventListener("hashchange", check, false);
 	return ret;
 }
 

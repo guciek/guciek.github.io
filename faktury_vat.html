@@ -1,9 +1,9 @@
-<!DOCTYPE html> 
-<html lang="pl"> 
-<head> 
-	<meta charset="utf-8" /> 
-	<title>Wydrukuj fakturę VAT</title> 
-</head> 
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+	<meta charset="utf-8" />
+	<title>Wydrukuj fakturę VAT</title>
+</head>
 <body>
 
 <p style="color:red;font-size:20px">Do poprawnego działania programu
@@ -135,10 +135,10 @@ function plLiczbaSlownieDoTys(s)
 {
 	if (s.length > 3) return '?';
 	while (s.length < 3) s = '0'+s;
-	
+
 	var r = '';
 	var t;
-	
+
 	var slownieSetki = ['', 'sto', 'dwieście', 'trzysta', 'czterysta', 'pięćset',
 		'sześćset', 'siedemset', 'osiemset', 'dziewięćset'];
 	var slownieDziesiatki = ['', '', 'dwadzieścia', 'trzydzieści',
@@ -149,10 +149,10 @@ function plLiczbaSlownieDoTys(s)
 		'osiemnaście', 'dziewiętnaście'];
 	var slownieJednosci = ['zero', 'jeden', 'dwa', 'trzy',
 		'cztery', 'pięć', 'sześć', 'siedem', 'osiem', 'dziewięć'];
-	
+
 	t = slownieSetki[parseInt(s.charAt(0))];
 	if (t != '') r += t;
-	
+
 	if (s.charAt(1) == '1')
 	{
 		if (r != '') r += ' ';
@@ -166,7 +166,7 @@ function plLiczbaSlownieDoTys(s)
 			if (r != '') r += ' ';
 			r += t;
 		}
-		
+
 		if ((s.charAt(2) != '0') || (r == ''))
 		{
 			t = slownieJednosci[parseInt(s.charAt(2))];
@@ -174,7 +174,7 @@ function plLiczbaSlownieDoTys(s)
 			r += t;
 		}
 	}
-	
+
 	return r;
 }
 
@@ -199,15 +199,15 @@ function plLiczbaSlownieDoMln(s)
 function plKwotaSlownieZlGl(z, g)
 {
 	if (z.length > 6) return 'błąd wypisywania kwoty słownie';
-	
+
 	var zsl = plLiczbaSlownieDoMln(z);
 	var gsl = plLiczbaSlownieDoMln(g);
-	
+
 	var r = zsl+' ';
 	r += plOdmienPoLiczbie(zsl, ['złotych', 'złoty', 'złote']);
 	r += ' '+gsl+' ';
 	r += plOdmienPoLiczbie(gsl, ['groszy', 'grosz', 'grosze']);
-	
+
 	return r;
 }
 
@@ -307,7 +307,7 @@ function btnDivPara(bdpAction, bdpTitle)
 				+bdpTitle
 			+'</span>'
 		+'</div>';
-	
+
 	return s;
 }
 
@@ -315,7 +315,7 @@ function restorePageData()
 {
 	var i;
 	var e;
-	
+
 	i = 0;
 	while (i < inpCnt)
 	{
@@ -332,7 +332,7 @@ function storePageInpData()
 {
 	var i;
 	var e;
-	
+
 	i = 0;
 	while (i < inpCnt)
 	{
@@ -355,7 +355,7 @@ function storePageTabData()
 {
 	var i;
 	var e;
-	
+
 	i = 0;
 	while (i < inpCnt)
 	{
@@ -389,20 +389,20 @@ function delSaved(i)
 function restoreSaved(i)
 {
 	if (userReadVar('s'+i+'_state') != "ok") return;
-	
+
 	var k;
-	
+
 	k = 0;
 	while (k < inpCnt)
 	{
 		inpData[k] = userReadVar('s'+i+'_d'+k);
 		k++;
 	}
-	
+
 	tabCnt = parseInt(userReadVar('s'+i+'_tcnt'));
-	
+
 	tabData = [];
-	
+
 	if (tabCnt < 1)
 	{
 		tabCnt = 1;
@@ -422,11 +422,11 @@ function restoreSaved(i)
 			k++;
 		}
 	}
-	
+
 	tabsel = 1;
 
 	restorePageData();
-	
+
 	writeBody();
 }
 
@@ -439,20 +439,20 @@ function doSaveAll()
 	{
 		i++;
 	}
-	
+
 	userSaveVar('s'+i+'_state', 'ok');
-	
+
 	var k;
-	
+
 	k = 0;
 	while (k < inpCnt)
 	{
 		userSaveVar('s'+i+'_d'+k, inpData[k]);
 		k++;
 	}
-	
+
 	userSaveVar('s'+i+'_tcnt', ''+tabCnt);
-	
+
 	k = 0;
 	while (k < tabCnt)
 	{
@@ -462,7 +462,7 @@ function doSaveAll()
 		userSaveVar('s'+i+'_t3'+k, (tabData[k])[3]);
 		k++;
 	}
-	
+
 	writeBody();
 }
 
@@ -472,7 +472,7 @@ function savedDivPara(saveopt)
 	var n;
 	var i;
 	var t;
-	
+
 	if (saveopt)
 	{
 		s +=
@@ -480,12 +480,12 @@ function savedDivPara(saveopt)
 			+inpDivPara(12)
 			+btnDivPara('doSaveAll();', pageStrings[29]);
 	}
-	
+
 	s += '<div'+divHeader+'>'+pageStrings[19]+'</div>';
-	
+
 	n = 0;
 	i = 0;
-	
+
 	t = userReadVar('s'+i+'_state');
 	while (t != "")
 	{
@@ -507,9 +507,9 @@ function savedDivPara(saveopt)
 		i++;
 		t = userReadVar('s'+i+'_state');
 	}
-	
+
 	if (n < 1) s += '<div'+divPara+'>'+pageStrings[20]+'</div>';
-	
+
 	return s;
 }
 
@@ -521,10 +521,10 @@ function inpDivPara(i)
 			+'<br/>'
 			+'<input type="text" style="border:1px dashed rgb(150,150,150);width:80%;margin-top:3px" id="inp'+i+'" value="'+inpData[i]+'" />'
 		+'</div>';
-	
+
 	return s;
 }
-	
+
 function initPg()
 {
 	var tsrc = document.body.getElementsByTagName("p");
@@ -535,43 +535,43 @@ function initPg()
 		t[i-1] = tsrc[i].innerHTML;
 		i++;
 	}
-	
+
 	i = 0;
 	while (i < inpCnt)
 	{
 		inpData[i] = "";
-		
+
 		if (i < 6) inpDes[i] = t[i+9];
 		else if (i < 9) inpDes[i] = t[i+3];
 		else if (i == 12) inpDes[i] = t[28];
 		else if (i <= 12) inpDes[i] = t[i+6];
 		else inpDes[i] = t[i+23];
-		
+
 		i++;
 	}
-	
+
 	inpData[3] = t[23];
 	inpData[9] = t[22];
-	
+
 	tabTitles[0] = t[3];
 	tabTitles[1] = t[4];
 	tabTitles[2] = t[6];
 	tabTitles[3] = t[7];
-	
+
 	pageStrings = t;
 }
 
 function filledPrintDiv(fpdContent, fpdSub)
 {
 	var s = "";
-	
+
 	if (fpdContent == "") fpdContent = "-";
 
 	s +=
 		'<div style="text-align:center;border-bottom:1pt solid rgb(180,180,180);overflow:hidden;margin-top:2pt'+((fpdSub == "") ? ';margin-bottom:5pt' : '')+'">'
 			+fpdContent
 		+'</div>';
-	
+
 	if (fpdSub != "")
 	{
 		s +=
@@ -579,7 +579,7 @@ function filledPrintDiv(fpdContent, fpdSub)
 				+fpdSub
 			+'</div>';
 	}
-		
+
 	return s;
 }
 
@@ -597,12 +597,12 @@ function percentLeftColumn(plcP, plcL, plcR)
 		+'</div>';
 
 	s += '<div style="width:'+(plcP-1)+'%">';
-	
+
 	s +=
 		plcL
 		+'</div>'
 		+'<div style="clear:both;height:0"></div></div>';
-		
+
 	return s;
 }
 
@@ -618,7 +618,7 @@ function tableBegin(colData, colDataSub, colWidth)
 		if (!colWidth[i]) colWidth[i] = 1;
 		j += colWidth[i];
 		if (!(colData[i+1])) colWidth[i] = 100-j;
-		
+
 		s += '<td '+((colDataSub[i] == '') ? ' rowspan="2"' : '')+
 			' style="font-size:inherit;'+((i==0)?'border-left:1pt solid rgb(180,180,180);':'')+
 			'border-right:1pt solid rgb(180,180,180);border-top:1pt solid rgb(180,180,180)'+
@@ -687,61 +687,61 @@ function tableCalculations()
 			alert((tabData[i])[2] + ' / ' + (tabData[i])[0]);
 			return 0;
 		}
-		
+
 		tableCalculationsData[i] = [(tabData[i])[1], (tabData[i])[2], '', '', '', ''];
 		s1 += 100 * parseInt((tableCalculationsData[i])[0]);
-		
+
 		n = parseInt((tableCalculationsData[i])[0]) * parseInt((tabData[i])[3]);
 		s2 += n;
-		
+
 		o = ''+n;
 		while (o.length < 3) o = '0'+o;
 		(tableCalculationsData[i])[2] = o.substr(0, o.length-2);
 		(tableCalculationsData[i])[3] = o.charAt(o.length-2)+o.charAt(o.length-1);
-		
+
 		n += 100*parseInt((tabData[i])[1]);
 		s3 += n;
-		
+
 		o = ''+n;
 		while (o.length < 3) o = '0'+o;
 		(tableCalculationsData[i])[4] = o.substr(0, o.length-2);
 		(tableCalculationsData[i])[5] = o.charAt(o.length-2)+o.charAt(o.length-1);
-	 
+
 		i++;
 	}
-	
+
 	tableCalculationsData[i] = ['', '', '', '', '', ''];
-	
+
 	o = ''+s1;
 	while (o.length < 3) o = '0'+o;
 	(tableCalculationsData[i])[0] = o.substr(0, o.length-2);
 	(tableCalculationsData[i])[1] = o.charAt(o.length-2)+o.charAt(o.length-1);
-	
+
 	o = ''+s2;
 	while (o.length < 3) o = '0'+o;
 	(tableCalculationsData[i])[2] = o.substr(0, o.length-2);
 	(tableCalculationsData[i])[3] = o.charAt(o.length-2)+o.charAt(o.length-1);
-	
+
 	o = ''+s3;
 	while (o.length < 3) o = '0'+o;
 	(tableCalculationsData[i])[4] = o.substr(0, o.length-2);
 	(tableCalculationsData[i])[5] = o.charAt(o.length-2)+o.charAt(o.length-1);
-	
+
 	return 1;
 }
 
 function invoicePrint(ver)
 {
 	if (!tableCalculations()) return;
-	
+
 	var defaultFontSize = '8pt';
 	var topinfoFontSize = '8pt';
 	var titleFontSize = '12pt';
 	var subtitleFontSize = '10pt';
 	var bigFontSize = '9pt';
-	
+
 	var r = '<div id="printmode" style="font-family:sans-serif;font-size:'+defaultFontSize+';color:rgb(0,0,0);cursor:pointer;" onclick="writeBody();">';
- 
+
 	r +=
 		percentLeftColumn
 		(
@@ -755,7 +755,7 @@ function invoicePrint(ver)
 			+'</div>',
 			filledPrintDivNr(14)
 		)
-		
+
 		+percentLeftColumn
 		(
 			18,
@@ -813,9 +813,9 @@ function invoicePrint(ver)
 				)
 			)
 		+'</div>'
-		
-		
-		
+
+
+
 		+percentLeftColumn
 		(
 			18,
@@ -832,8 +832,8 @@ function invoicePrint(ver)
 				filledPrintDivNr(8)
 			)
 		+'</div>'
-		
-		
+
+
 		+'<div style="font-size:'+topinfoFontSize+'">'
 			+percentLeftColumn
 			(
@@ -843,8 +843,8 @@ function invoicePrint(ver)
 				+'</div>',
 				filledPrintDiv(inpData[10], "")
 			)
-			
-			
+
+
 			+percentLeftColumn
 			(
 				12,
@@ -854,7 +854,7 @@ function invoicePrint(ver)
 				filledPrintDiv(inpData[9], "")
 			)
 		+'</div>';
-	
+
 	r +=
 		tableBegin
 		(
@@ -910,7 +910,7 @@ function invoicePrint(ver)
 				17
 			]
 		);
-		
+
 	var i = 0;
 	var f;
 	var g;
@@ -922,7 +922,7 @@ function invoicePrint(ver)
 		f[1] = minNumStrLen(''+f[1], 2);
 		f[3] = minNumStrLen(''+f[3], 2);
 		f[5] = minNumStrLen(''+f[5], 2);
-		
+
 		if (i < tabCnt)
 		{
 			g = (tabData[i])[0];
@@ -939,7 +939,7 @@ function invoicePrint(ver)
 			h = '';
 			k = '-';
 		}
-		
+
 		r += tableRow
 		(
 			[
@@ -986,12 +986,12 @@ function invoicePrint(ver)
 				)
 			]
 		);
-		
+
 		i++;
 	}
-		
+
 	r += tableEnd();
-	
+
 	r +=
 		'<div style="margin-top:9pt">'
 			+percentLeftColumn
@@ -1008,7 +1008,7 @@ function invoicePrint(ver)
 				)
 			)
 		+'</div>';
-	
+
 	r += filledPrintDiv
 	(
 		plKwotaSlownieZlGl
@@ -1018,7 +1018,7 @@ function invoicePrint(ver)
 		),
 		pageStrings[64]
 	);
-	
+
 	r +=
 		'<div style="margin-top:40pt">'
 			+percentLeftColumn
@@ -1040,14 +1040,14 @@ function invoicePrint(ver)
 				+'</div>'
 			)
 		+'</div>';
-			
+
 	r += '</div>';
-	
+
 	try {
 		var win = window.open('', 'Do wydruku'); // menubar=yes
 		win.document.open();
 		win.document.write('<html><body onload="window.print()">'+
-			r+'</body></html>'); 
+			r+'</body></html>');
 		win.document.close();
 	} catch (err) {
 		alert('Błąd! '+err);
@@ -1057,39 +1057,39 @@ function invoicePrint(ver)
 function genTabIndex()
 {
 	var s = '<div style="max-width:60em">';
-	
+
 	var w = [60, 10, 8, 8];
 	var t = [pageStrings[49],pageStrings[57],pageStrings[58],pageStrings[59]];
-	
+
 	var i = 0;
-	
+
 	while (i < 4)
 	{
 		s += '<input type="text" readonly="readonly" style="border:1px solid rgb(255,255,255);font-size:smaller;width:'+w[i]+'%;margin:3px 8px 0 0" value="'+t[i]+'" />';
 		i++;
 	}
-	
+
 	s += '</div>';
-	
+
 	return s;
 }
 
 function genTabRowInner(nr)
 {
 	var s = '';
-	
+
 	var w = [60, 10, 8, 8];
-	
+
 	var i = 0;
-	
+
 	checkTabRowData(nr);
-		
+
 	while (i < 4)
 	{
 		s += '<input type="text"'+((i > 1) ? ' maxlength="2"' : '')+((i==2)?' readonly="readonly"':'')+' style="border:1px dashed rgb(150,150,150);width:'+w[i]+'%;margin:3px 8px 0 0" value="'+((tabData[nr])[i])+'" />';
 		i++;
 	}
-	
+
 	return s;
 }
 
@@ -1122,13 +1122,13 @@ function lessTabRows()
 function writeBody()
 {
 	storePageData();
-	
+
 	var i;
-	
+
 	var spanTab = ' style="display:inline-block;padding:5px 15px 5px 15px;margin-right:10px;'+
 		'border:1px solid rgb(140,140,140);background:rgb(230,230,240);'+
 		'border-bottom:none;font-size:12px"';
-	
+
 	var tabsHtml = "";
 	i = 0;
 	while (i < 4)
@@ -1153,9 +1153,9 @@ function writeBody()
 		}
 		i++;
 	}
-	
+
 	var tabContent = " ";
-	
+
 	if (tabsel == 0)
 	{
 		tabContent =
@@ -1163,17 +1163,17 @@ function writeBody()
 			+'<div'+divPara+'>'+pageStrings[1]+'</div>'
 			+'<div'+divPara+'>'+pageStrings[2]+'</div>'
 			+savedDivPara(0)
-			+'<div'+divPara+'>'+pageStrings[21]+'</div>'	
+			+'<div'+divPara+'>'+pageStrings[21]+'</div>'
 			+'<div'+divHeader+'>'+pageStrings[24]+'</div>'
 			+'<div'+divPara+'>'+pageStrings[25]+'</div>'
 			+'<div'+divPara+'>'+pageStrings[26]+'</div>';
 	}
-	
+
 	if (tabsel == 1)
 	{
 		tabContent =
 			'<div'+divHeader+'>'+pageStrings[8]+'</div>';
-		
+
 		i = 0;
 		while (i < 5)
 		{
@@ -1185,10 +1185,10 @@ function writeBody()
 			tabContent += inpDivPara(i);
 			i++;
 		}
-		
+
 		tabContent +=
 			'<div'+divHeader+'>'+pageStrings[5]+'</div>';
-		
+
 		i = 6;
 		while (i < 10)
 		{
@@ -1196,7 +1196,7 @@ function writeBody()
 			i++;
 		}
 	}
-	
+
 	if (tabsel == 2)
 	{
 		tabContent =
@@ -1206,23 +1206,23 @@ function writeBody()
 			+inpDivPara(10)
 			+inpDivPara(11)
 			+'<div'+divHeader+'>'+pageStrings[6]+'</div>';
-			
+
 		tabContent += genTabIndex();
-		
+
 		i = 0;
 		while (i < tabCnt)
 		{
 			tabContent += genTabRow(i);
 			i++;
 		}
-		
+
 		tabContent += btnDivPara('moreTabRows();', pageStrings[60]);
 		if (tabCnt > 1)
 		{
 			tabContent += btnDivPara('lessTabRows();', pageStrings[61]);
 		}
 	}
-	
+
 	if (tabsel == 3)
 	{
 		tabContent =
@@ -1235,7 +1235,7 @@ function writeBody()
 			+'<div'+divPara+'>'+pageStrings[31]+'</div>'
 			+savedDivPara(1);
 	}
-	
+
 	document.body.style.background = "rgb(200,200,255)";
 	document.body.innerHTML =
 		'<div style="font-family:sans-serif;font-size:14px;color:rgb(30,30,30);cursor:default;">'
@@ -1269,4 +1269,3 @@ if (userReadVar('savingworks') === 'yes') {
 
 </body>
 </html>
-

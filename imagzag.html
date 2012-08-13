@@ -278,7 +278,7 @@ paint(240)
 				</li>
 				<li>
 					<a href="#">Barnsley fern</a>
-					<script type="x-text/x-js">	
+					<script type="x-text/x-js">
 w = canvas.width = 400
 h = canvas.height = 600
 lineWidth = 1
@@ -1010,17 +1010,17 @@ function gui() {
 			e.className = cls;
 			return e;
 		}
-		
+
 		var close = div_class('close');
 		close.innerHTML = 'X';
-		
+
 		var bar = div_class('bar');
 		bar.innerHTML = title;
 		bar.appendChild(close);
-		
+
 		var inner = div_class('inner');
 		inner.appendChild(content);
-		
+
 		var w = div_class('window');
 		w.style.left = Math.floor(Math.random()*100+20)+'px';
 		w.style.top = Math.floor(Math.random()*100+150)+'px';
@@ -1059,7 +1059,7 @@ function gui() {
 		close.onmousedown = function(event) {
 			event.stopPropagation();
 		};
-		
+
 		function bounds() {
 			var x = parseInt(w.style.left, 10);
 			var y = parseInt(w.style.top, 10);
@@ -1077,7 +1077,7 @@ function gui() {
 		bounds();
 		setTimeout(bounds, 50);
 		fullscreen.onresize.add(bounds);
-		
+
 		content.get_x = function() {
 			return parseInt(w.style.left, 10);
 		};
@@ -1102,7 +1102,7 @@ function gui() {
 		drag.onend.add(function() {
 			if (content.ondragend) { content.ondragend(); }
 		});
-		
+
 		var editarea = document.getElementById('editarea');
 		editarea.appendChild(w);
 		var do_close;

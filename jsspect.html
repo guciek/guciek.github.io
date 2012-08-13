@@ -33,17 +33,17 @@ div#error { position: absolute; width: 30%; left: 35%;
 	</style>
 </head>
 <body>
-	<div id="error"> 
+	<div id="error">
 		Error: This application requires JavaScript to run.
-	</div> 
-	<div id="menubar"> 
-		<p> 
+	</div>
+	<div id="menubar">
+		<p>
 			<b>JSSpect</b> - audio frequency
 				spectrum analyzer in JavaScript - see more at
-			<a href="http://guciek.github.com"> 
+			<a href="http://guciek.github.com">
 			guciek.github.com</a>
-		</p> 
-	</div> 
+		</p>
+	</div>
 	<canvas id="view"></canvas>
 	<ul id="menubuttons">
 		<li>
@@ -130,7 +130,7 @@ function showswf(swf) {
 	t.textContent = "Please configure and enable microphone input:";
 	t.style.margin = "10px 10px 0 10px";
 	t.style.height = "20px";
-	
+
 	d.style.position = "absolute";
 	d.style.left = "50%";
 	d.style.top = "50%";
@@ -143,7 +143,7 @@ function showswf(swf) {
 	d.appendChild(o);
 
 	document.body.appendChild(d);
-	
+
 	return {
 		hide: function() {
 			d.style.left = "100%";
