@@ -16,38 +16,19 @@ pre, code { font-family: DejaVu Sans Mono, monospace;
 h1 { font-size: 18px; color:#222 }
 h2 { font-size: 14px; }
 
-div.article { line-height:18px; margin-bottom: 20px }
-div.article h1 { background: url(break.png) repeat-x 0 15px;
-	padding-top: 55px; margin-left: -26px; margin-right: -28px;
-	padding-left: 26px; padding-right: 28px; }
-
 div.page { margin: 0 auto; background: #efefef;
 	width:800px; padding: 5px 27px 17px 25px; }
 
-div.page, ul.subs img, ul.gallery img, div.article img
+div.page, ul.subs img
 	{ border: 1px solid #888888 }
 
-ul.navpath { display: inline }
-ul.navpath li { display: inline; float: left;
-	padding-right: 2px; margin-top: 17px }
-ul.navpath a { font-size: 14px; color: #888888 }
-ul.navpath li:after { content:" » " }
-
-ul.subs, ul.gallery { margin-right:-27px }
-ul.subs li, ul.gallery li { display: inline-block; vertical-align: top;
+ul.subs { margin-right:-27px }
+ul.subs li { display: inline-block; vertical-align: top;
 	width: 140px; padding: 0 21px 20px 0;
 	word-wrap: break-word; overflow:hidden }
 ul.subs img { display: block; width: 140px; height: 100px;
 	text-decoration: none; margin-bottom: 4px }
-
-div.alphabetical ul { width: 200px; margin-right: 10px; float: left;
-	padding-bottom: 20px }
-div.alphabetical b { font-size:18px; line-height: 40px; color: #777 }
-div.alphabetical li { margin: 6px 0 }
-
-ul.attachments { margin: -5px 0 20px 0 }
-ul.attachments li { margin: 6px 0 }
-ul.attachments li:before { content:"⇨ " }
+ul.subs li span { font-size: 80%; color: #666 }
 
 div.footer { text-align: center; width: 100%;
 	min-width: 874px; position: absolute;
