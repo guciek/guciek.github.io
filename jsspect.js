@@ -10,10 +10,11 @@
         newSampleReceiver,
         getWindowFunc;
 
-    function showInfo(msg) {
+    function showInfo(msg, hide) {
         try {
             var div = document.getElementById("error");
-            div.style.display = msg ? "block" : "none";
+            div.style.display = (hide && (msg === div.textContent)) ?
+                    "none" : "block";
             div.style.background = "#dfd";
             div.textContent = msg;
         } catch (ignore) {}
@@ -122,48 +123,21 @@
     newSampleReceiver = (function () {
         var receivers = [],
             isWorking = false,
-            sampleRate = 8000,
-            sampleRateConfidence = 0,
-            rateStatStart,
-            rateStatCount = 0;
-        onSampleData = function (data) {
+            sampleRate = 8000;
+        onSampleData = function (data, rate) {
             var i,
-                curTime = new Date().getTime(),
-                curStat,
                 arr = [];
             if ((!data) || (data.length < 2)) {
-                return;
-            }
-            for (i = 0; i < data.length; i += 1) {
-                arr.push(data[i]);
-            }
-            if (arr[0] === arr[1]) {
                 return;
             }
             if (!isWorking) {
                 isWorking = true;
             }
-            rateStatCount += arr.length;
-            if (!rateStatStart) {
-                rateStatCount = 0;
-                rateStatStart = curTime;
-            } else if (curTime - rateStatStart > 1000) {
-                curStat = (1000 * rateStatCount) /
-                    (curTime - rateStatStart);
-                if ((sampleRateConfidence < 1) ||
-                        ((curStat * 1.05 > sampleRate) &&
-                        (sampleRate * 1.05 > curStat))) {
-                    if (sampleRateConfidence < 100) {
-                        sampleRateConfidence += 1;
-                    }
-                    sampleRate =
-                        (curStat + (sampleRateConfidence - 1) * sampleRate) /
-                            sampleRateConfidence;
-                } else if (sampleRateConfidence < 4) {
-                    sampleRateConfidence = 0;
-                }
-                rateStatCount = 0;
-                rateStatStart = curTime;
+            if (rate && (Number(rate) > 1000)) {
+                sampleRate = Number(rate);
+            }
+            for (i = 0; i < data.length; i += 1) {
+                arr.push(data[i]);
             }
             for (i = 0; i < receivers.length; i += 1) {
                 (receivers[i])(arr);
@@ -263,7 +237,8 @@
 
     function freqAnalysis(samples, rate) {
         var fftLen = 256,
-            cache = {};
+            cache = {},
+            log2 = Math.log(2);
         function fftArray(scale) {
             var i,
                 j,
@@ -321,7 +296,7 @@
                 }
                 if ((scale > 1) && (freq * fftLen >= 50) &&
                         (freq * fftLen < 100)) {
-                    part = Math.log2(freq * fftLen / 50);
+                    part = Math.log(freq * fftLen / 50) / log2;
                     return fftValue(scale, freq) *
                             Math.cos(part * Math.PI * 0.5)
                         + fftValue(scale / 2, freq / 2) *
@@ -642,7 +617,7 @@
                 t -= Math.floor(t);
                 data.push(Math.sin(t * 2 * Math.PI));
             }
-            onSampleData(data);
+            onSampleData(data, 8000);
         }, 50);
     }
 
@@ -650,15 +625,15 @@
         showInfo("Waiting for samples...");
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         var context = new window.AudioContext(),
-            proc = context.createScriptProcessor(1024, 1, 0),
-            info = false;
+            proc = context.createScriptProcessor(2048, 1, 0);
         proc.onaudioprocess = function (ev) {
-            var data = ev.inputBuffer.getChannelData(0);
-            if ((!info) && (data.length >= 2) && (data[0] !== data[1])) {
-                showInfo();
-                info = true;
-            }
-            onSampleData(data);
+            runLater(function () {
+                var data = ev.inputBuffer.getChannelData(0);
+                if ((data.length >= 2) && (data[0] !== data[1])) {
+                    showInfo("Waiting for samples...", true);
+                }
+                onSampleData(data, context.sampleRate);
+            })();
         };
         window.source = context.createMediaStreamSource(lms);
         window.source.connect(proc);
@@ -697,4 +672,5 @@
         }
         runNextFrame(step);
     });
+
 }());
