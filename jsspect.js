@@ -236,7 +236,7 @@
     }());
 
     function freqAnalysis(samples, rate) {
-        var fftLen = 256,
+        var fftLen = 512,
             cache = {},
             log2 = Math.log(2);
         function fftArray(scale) {
@@ -290,13 +290,12 @@
             getFreq: function (freq) {
                 var scale = 1, part;
                 freq /= rate;
-                while ((freq * fftLen < 50) && (fftLen * scale < rate / 3)) {
+                while ((freq < 0.2) && (fftLen * scale < rate / 3)) {
                     scale *= 2;
                     freq *= 2;
                 }
-                if ((scale > 1) && (freq * fftLen >= 50) &&
-                        (freq * fftLen < 100)) {
-                    part = Math.log(freq * fftLen / 50) / log2;
+                if ((scale > 1) && (freq >= 0.2) && (freq < 0.4)) {
+                    part = Math.log(freq / 0.2) / log2;
                     return fftValue(scale, freq) *
                             Math.cos(part * Math.PI * 0.5)
                         + fftValue(scale / 2, freq / 2) *
@@ -382,7 +381,7 @@
     }
 
     function spectGraph(samplerec) {
-        var freqrec = freqReceiver(samplerec, 0.005),
+        var freqrec = freqReceiver(samplerec, 0.01),
             w = 100,
             h = 100,
             viewleft = 4.1,
@@ -467,7 +466,7 @@
     }
 
     function ringGraph(samplerec) {
-        var freqrec = freqReceiver(samplerec, 0.007),
+        var freqrec = freqReceiver(samplerec, 0.01),
             w = 100,
             h = 100,
             updated = false,
