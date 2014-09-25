@@ -10,37 +10,6 @@ function jsspect(env) {
         newSampleReceiver,
         getWindowFunc;
 
-    function windowHashLocation() {
-        var last, ret;
-        function read() {
-            if (window.location.hash) {
-                return window.location.hash.substring(1);
-            }
-            return '';
-        }
-        function check() {
-            var loc = read();
-            if (loc === last) { return; }
-            last = loc;
-            if (ret.onuserchange) {
-                ret.onuserchange();
-            }
-        }
-        last = read();
-        ret = {
-            set: function (h) {
-                last = String(h);
-                window.location = '#' + last;
-            },
-            get: function () {
-                return last;
-            }
-        };
-        setInterval(check, 250);
-        window.addEventListener("hashchange", check, false);
-        return ret;
-    }
-
     function fftModulus(datar) {
         var n = datar.length, datai = [], i,
             multr, multi, group, step, pr, pi, fr, fi;
@@ -504,15 +473,16 @@ function jsspect(env) {
         };
     }
 
-    function draw() {
-        var view, hashloc = windowHashLocation(), graph;
+    function initDraw() {
+        var view = env.canvas(),
+            graph;
         try {
-            view = env.canvas().getContext("2d");
+            view = view.getContext("2d");
         } catch (err) {
             throw "Your web browser does not support " +
                 "the <canvas> element!";
         }
-        function onresize() {
+        function redraw() {
             var w = view.canvas.width,
                 h = view.canvas.height;
             view.fillStyle = "rgb(192,192,192)";
@@ -521,7 +491,8 @@ function jsspect(env) {
             graph.setsize(w, h);
             graph.frame(view);
         }
-        function setmode(m) {
+        function setmode() {
+            var m = env.location().getHash();
             if (m === "volume") {
                 graph = volumeGraph(newSampleReceiver());
             } else if (m === "ring") {
@@ -529,38 +500,16 @@ function jsspect(env) {
             } else {
                 graph = spectGraph(newSampleReceiver());
             }
-            onresize();
+            redraw();
         }
-        hashloc.onuserchange = function () {
-            setmode(hashloc.get());
-        };
-        hashloc.onuserchange();
-        return {
-            frame: function () {
-                graph.frame(view);
-            }
-        };
-    }
-
-    function runNextFrame(f) {
-        f = env.eventHandler(f);
-        if (window.requestAnimationFrame) {
-            window.requestAnimationFrame(f);
-            return;
+        function step() {
+            graph.frame(view);
+            env.runOnNextFrame(step);
         }
-        if (window.mozRequestAnimationFrame) {
-            window.mozRequestAnimationFrame(f);
-            return;
-        }
-        if (window.webkitRequestAnimationFrame) {
-            window.webkitRequestAnimationFrame(f);
-            return;
-        }
-        if (window.oRequestAnimationFrame) {
-            window.oRequestAnimationFrame(f);
-            return;
-        }
-        setTimeout(f, 50);
+        setmode();
+        env.runOnCanvasResize(redraw);
+        env.runOnLocationChange(setmode);
+        env.runOnNextFrame(step);
     }
 
     function genTestInput() {
@@ -632,15 +581,6 @@ function jsspect(env) {
         addLink("Volume", "#volume").
         addLink("Note Ring", "#ring");
 
-    runNextFrame(function () {
-        var d = draw();
-        d.frame();
-        requestCapture();
-        function step() {
-            d.frame();
-            runNextFrame(step);
-        }
-        runNextFrame(step);
-    });
-
+    initDraw();
+    requestCapture();
 }

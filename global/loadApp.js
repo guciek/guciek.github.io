@@ -16,10 +16,55 @@
         }
     };
 
+    function makeSet() {
+        var es = [];
+        return {
+            add: function (e) {
+                var i;
+                for (i = 0; i < es.length; i += 1) {
+                    if (es[i] === e) { return false; }
+                }
+                es.push(e);
+                return true;
+            },
+            remove: function (e) {
+                var i;
+                for (i = 0; i < es.length; i += 1) {
+                    if (es[i] === e) {
+                        es.splice(i, 1);
+                        return true;
+                    }
+                }
+                return false;
+            },
+            removeAll: function () {
+                es = [];
+            },
+            contains: function (e) {
+                var i;
+                for (i = 0; i < es.length; i += 1) {
+                    if (es[i] === e) {
+                        return true;
+                    }
+                }
+                return false;
+            },
+            forEach: function (f) {
+                var i, copy = [];
+                for (i = 0; i < es.length; i += 1) {
+                    copy.push(es[i]);
+                }
+                for (i = 0; i < copy.length; i += 1) {
+                    f(copy[i]);
+                }
+            }
+        };
+    }
+
     function $(id) {
         var e = document.getElementById(id);
         if (!e) {
-            throw "Could not find element '" + id + "'";
+            throw "Could not find element '" + id + "'!";
         }
         return e;
     }
@@ -55,6 +100,24 @@
                 action(p1, p2, p3);
             } catch (err) {
                 showError(err);
+            }
+        };
+    }
+
+    function makeEvent() {
+        var callbacks = makeSet();
+        return {
+            add: callbacks.add,
+            remove: callbacks.remove,
+            removeAll: callbacks.removeAll,
+            fire: function () {
+                callbacks.forEach(function (callback) {
+                    try {
+                        callback();
+                    } catch (err) {
+                        showError(err);
+                    }
+                });
             }
         };
     }
@@ -105,10 +168,7 @@
         return ret;
     }
 
-    function getCanvas() {
-        try {
-            return $("canvas");
-        } catch (ignore) {}
+    function addCanvas(resizeEvent) {
         var canvas = element("canvas"),
             onResize = eventHandler(function () {
                 var w = window.innerWidth,
@@ -117,6 +177,7 @@
                         ((canvas.width !== w) || (canvas.height !== h))) {
                     canvas.width = w;
                     canvas.height = h;
+                    resizeEvent.fire();
                 }
             });
         canvas.style.left = "0px";
@@ -148,6 +209,55 @@
         }
     }
 
+    function runOnAnimationFrame(f) {
+        f = eventHandler(f);
+        if (window.requestAnimationFrame) {
+            window.requestAnimationFrame(f);
+            return;
+        }
+        if (window.mozRequestAnimationFrame) {
+            window.mozRequestAnimationFrame(f);
+            return;
+        }
+        if (window.webkitRequestAnimationFrame) {
+            window.webkitRequestAnimationFrame(f);
+            return;
+        }
+        if (window.oRequestAnimationFrame) {
+            window.oRequestAnimationFrame(f);
+            return;
+        }
+        setTimeout(f, 50);
+    }
+
+    function locationManager() {
+        function readHash() {
+            if (window.location.hash) {
+                return String(window.location.hash).substring(1);
+            }
+            return "";
+        }
+        var currentHash = readHash(),
+            ret = {
+                onchange: makeEvent(),
+                setHash: function (h) {
+                    window.location = '#' + String(h);
+                },
+                getHash: function () {
+                    return currentHash;
+                }
+            },
+            checkhash = eventHandler(function () {
+                var newHash = readHash();
+                if (newHash === currentHash) { return; }
+                currentHash = newHash;
+                ret.onchange.fire();
+            });
+        setInterval(checkhash, 250);
+        window.addEventListener("hashchange", checkhash, false);
+        return ret;
+    }
+
     function addRightMenu(manager, selfid) {
         var menu = manager.addSubmenu("More Apps", true);
         function add(id, title) {
@@ -169,12 +279,19 @@
         s.src = "apps/" + appid + ".js";
         document.body.appendChild(s);
         document.body.onload = eventHandler(function () {
-            var menu = menuManager();
+            var menu = menuManager(),
+                location = locationManager(),
+                resizeEvent = makeEvent();
             addRightMenu(menu, appid);
+            addCanvas(resizeEvent);
             window[appid]({
-                canvas: getCanvas,
+                canvas: function () { return $("canvas"); },
                 eventHandler: eventHandler,
+                location: function () { return location; },
                 menu: function () { return menu; },
+                runOnNextFrame: runOnAnimationFrame,
+                runOnCanvasResize: resizeEvent.add,
+                runOnLocationChange: location.onchange.add,
                 showMessage: showMessage
             });
         });
