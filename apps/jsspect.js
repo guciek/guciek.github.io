@@ -542,15 +542,13 @@ function jsspect(env) {
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         var context = new window.AudioContext(),
             proc = context.createScriptProcessor(2048, 1, 0);
-        proc.onaudioprocess = function (ev) {
-            env.eventHandler(function () {
-                var data = ev.inputBuffer.getChannelData(0);
-                if ((data.length >= 2) && (data[0] !== data[1])) {
-                    env.showMessage();
-                }
+        proc.onaudioprocess = env.eventHandler(function (ev) {
+            var data = ev.inputBuffer.getChannelData(0);
+            if (data.length >= 2) {
+                env.showMessage();
                 onSampleData(data, context.sampleRate);
-            })();
-        };
+            }
+        });
         window.source = context.createMediaStreamSource(lms);
         window.source.connect(proc);
     }
@@ -566,9 +564,7 @@ function jsspect(env) {
         env.showMessage("Requesting audio capture...");
         navigator.getUserMedia(
             { audio: true },
-            function (lms) {
-                env.eventHandler(initCapture, lms)();
-            },
+            env.eventHandler(initCapture),
             env.eventHandler(function () {
                 genTestInput();
                 throw "Could not capture audio.";

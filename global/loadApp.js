@@ -94,8 +94,8 @@
         }
     }
 
-    function eventHandler(action, p1, p2, p3) {
-        return function () {
+    function eventHandler(action) {
+        return function (p1, p2, p3) {
             try {
                 action(p1, p2, p3);
             } catch (err) {
