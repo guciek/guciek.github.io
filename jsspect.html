@@ -1,58 +1,16 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
     <title>JSSpect</title>
-    <style type="text/css">
-        html { font-size: 12px; font-family: DejaVu Sans, sans-serif;
-            color: black; background: #ccc }
-        body { margin: 0; padding: 0; overflow: hidden }
-        a { color: #44f; text-decoration: none }
-        p { margin: 0 }
-        ul { list-style:none; padding:0; margin: 0;
-            font-size: inherit; font-family: inherit }
-
-        div#menubar { width: 100%; height: 23px; background: #fff;
-            border-bottom: 2px solid #888; }
-        div#menubar p { line-height: 23px; text-align: right;
-            padding: 0 10px; margin: 0; color:#444 }
-
-        ul#menubuttons { position: absolute; left: 20px; top: 0;
-            background: #fff; height: 23px; cursor: default }
-        ul#menubuttons li { display: inline-block }
-        ul#menubuttons a { display: block; padding: 0 10px; line-height: 23px;
-            color: #000; text-decoration: none}
-        ul#menubuttons a:hover { color: #fff; background: #888 }
-
-        div#error { position: absolute; width: 30%; left: 35%;
-            top: 50%; padding: 10px; border: 1px solid #333;
-            background: #fdd; margin-top: -50px;
-            font-size: 16px; font-weight: bold; color: #222 }
-    </style>
+    <link rel="stylesheet" href="global/style.css" />
 </head>
 <body>
     <div id="error">
         Error: This application requires JavaScript to run.
     </div>
-    <div id="menubar">
-        <p>
-            <b>JSSpect</b> - audio frequency
-                spectrum analyzer in JavaScript - see more at
-            <a href="http://guciek.github.io">guciek.github.io</a>
-        </p>
+    <div id="description">
+        JSSpect - audio frequency spectrum analyzer
     </div>
-    <canvas id="view"></canvas>
-    <ul id="menubuttons">
-        <li>
-            <a href="#spectrum">Spectrum</a>
-        </li>
-        <li>
-            <a href="#volume">Volume</a>
-        </li>
-        <li>
-            <a href="#ring">Note Ring</a>
-        </li>
-    </ul>
-    <script src="jsspect.js"></script>
+    <script type="text/javascript" src="global/loadApp.js"></script>
 </body>
 </html>

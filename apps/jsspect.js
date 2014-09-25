@@ -3,43 +3,12 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, version 2 or 3.
 
-(function () {
+function jsspect(env) {
     "use strict";
 
     var onSampleData,
         newSampleReceiver,
         getWindowFunc;
-
-    function showInfo(msg, hide) {
-        try {
-            var div = document.getElementById("error");
-            div.style.display = (hide && (msg === div.textContent)) ?
-                    "none" : "block";
-            div.style.background = "#dfd";
-            div.textContent = msg;
-        } catch (ignore) {}
-    }
-
-    function showError(msg) {
-        try {
-            var div = document.getElementById("error");
-            div.style.display = "block";
-            div.style.background = "#fdd";
-            div.textContent = "Error: " + msg;
-        } catch (err) {
-            alert("Error: " + msg);
-        }
-    }
-
-    function runLater(action, p1, p2, p3) {
-        return function () {
-            try {
-                action(p1, p2, p3);
-            } catch (err) {
-                showError(err);
-            }
-        };
-    }
 
     function windowHashLocation() {
         var last, ret;
@@ -536,16 +505,16 @@
     }
 
     function draw() {
-        var view, w, h, hashloc = windowHashLocation(), graph;
+        var view, hashloc = windowHashLocation(), graph;
         try {
-            view = document.getElementById("view").getContext("2d");
+            view = env.canvas().getContext("2d");
         } catch (err) {
             throw "Your web browser does not support " +
                 "the <canvas> element!";
         }
         function onresize() {
-            view.canvas.width = w = window.innerWidth;
-            view.canvas.height = h = window.innerHeight - 25;
+            var w = view.canvas.width,
+                h = view.canvas.height;
             view.fillStyle = "rgb(192,192,192)";
             view.fillRect(0, 0, w, h);
             view.fillStyle = "rgb(255,255,255)";
@@ -566,7 +535,6 @@
             setmode(hashloc.get());
         };
         hashloc.onuserchange();
-        window.onresize = onresize;
         return {
             frame: function () {
                 graph.frame(view);
@@ -575,7 +543,7 @@
     }
 
     function runNextFrame(f) {
-        f = runLater(f);
+        f = env.eventHandler(f);
         if (window.requestAnimationFrame) {
             window.requestAnimationFrame(f);
             return;
@@ -621,15 +589,15 @@
     }
 
     function initCapture(lms) {
-        showInfo("Waiting for samples...");
+        env.showMessage("Waiting for samples...");
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         var context = new window.AudioContext(),
             proc = context.createScriptProcessor(2048, 1, 0);
         proc.onaudioprocess = function (ev) {
-            runLater(function () {
+            env.eventHandler(function () {
                 var data = ev.inputBuffer.getChannelData(0);
                 if ((data.length >= 2) && (data[0] !== data[1])) {
-                    showInfo("Waiting for samples...", true);
+                    env.showMessage();
                 }
                 onSampleData(data, context.sampleRate);
             })();
@@ -646,21 +614,22 @@
         if (!navigator.getUserMedia) {
             throw "Required getUserMedia API is not supported in your browser.";
         }
-        showInfo("Requesting audio capture...");
+        env.showMessage("Requesting audio capture...");
         navigator.getUserMedia(
             { audio: true },
             function (lms) {
-                runLater(function () {
-                    initCapture(lms);
-                })();
+                env.eventHandler(initCapture, lms)();
             },
-            function () {
-                showError("Could not capture audio.");
+            env.eventHandler(function () {
                 genTestInput();
-            }
+                throw "Could not capture audio.";
+            })
         );
     }
 
+    env.menu().addLink("Spectrum", "#spectrum");
+    env.menu().addLink("Volume", "#volume");
+    env.menu().addLink("Note Ring", "#ring");
     runNextFrame(function () {
         var d = draw();
         d.frame();
@@ -672,4 +641,4 @@
         runNextFrame(step);
     });
 
-}());
+}
