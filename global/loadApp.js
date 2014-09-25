@@ -62,8 +62,9 @@
     function menuManager() {
         var parent = $("description"),
             firstleft = true,
-            firstright = true;
-        return {
+            firstright = true,
+            ret;
+        ret = {
             addLink: function (title, link) {
                 var a = element("a", String(title));
                 a.href = link;
@@ -72,10 +73,12 @@
                     a.style.marginLeft = "20px";
                 }
                 parent.appendChild(element("div", a));
+                return ret;
             },
             addSubmenu: function (submenu, rightside) {
                 var menu = element("div", element("p", submenu)),
-                    links = element("div");
+                    links = element("div"),
+                    subret;
                 menu.appendChild(links);
                 if (rightside) {
                     if (firstright) {
@@ -88,18 +91,21 @@
                     menu.style.marginLeft = "20px";
                 }
                 parent.appendChild(menu);
-                return {
+                subret = {
                     addLink: function (title, link) {
                         var a = element("a", String(title));
                         a.href = link;
                         links.appendChild(a);
+                        return subret;
                     }
                 };
+                return subret;
             }
         };
+        return ret;
     }
 
-    function canvas() {
+    function getCanvas() {
         try {
             return $("canvas");
         } catch (ignore) {}
@@ -128,7 +134,7 @@
         var message, error;
         try {
             message = $("message");
-        } catch(err) {
+        } catch (err) {
             error = $("error");
             message = element("div");
             message.id = "message";
@@ -166,7 +172,7 @@
             var menu = menuManager();
             addRightMenu(menu, appid);
             window[appid]({
-                canvas: canvas,
+                canvas: getCanvas,
                 eventHandler: eventHandler,
                 menu: function () { return menu; },
                 showMessage: showMessage

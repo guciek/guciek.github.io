@@ -627,9 +627,11 @@ function jsspect(env) {
         );
     }
 
-    env.menu().addLink("Spectrum", "#spectrum");
-    env.menu().addLink("Volume", "#volume");
-    env.menu().addLink("Note Ring", "#ring");
+    env.menu().
+        addLink("Spectrum", "#spectrum").
+        addLink("Volume", "#volume").
+        addLink("Note Ring", "#ring");
+
     runNextFrame(function () {
         var d = draw();
         d.frame();
