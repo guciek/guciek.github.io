@@ -498,6 +498,9 @@ function jsspect(env) {
             } else if (m === "ring") {
                 graph = ringGraph(newSampleReceiver());
             } else {
+                if (m !== "spectrum") {
+                    env.location().setHash("spectrum");
+                }
                 graph = spectGraph(newSampleReceiver());
             }
             redraw();
@@ -531,7 +534,7 @@ function jsspect(env) {
                 }
                 t += m / 8000;
                 t -= Math.floor(t);
-                data.push(0.1*Math.sin(t * 2 * Math.PI));
+                data.push(0.1 * Math.sin(t * 2 * Math.PI));
             }
             onSampleData(data, 8000);
         }, 50);

@@ -122,17 +122,57 @@
         };
     }
 
-    function initMenuManager() {
+    function initLocationManager() {
+        function readHash() {
+            if (window.location.hash) {
+                return String(window.location.hash).substring(1);
+            }
+            return "";
+        }
+        var currentHash = readHash(),
+            ret = {
+                onchange: makeEvent(),
+                setHash: function (h) {
+                    window.location = '#' + String(h);
+                },
+                getHash: function () {
+                    return currentHash;
+                }
+            },
+            checkhash = eventHandler(function () {
+                var newHash = readHash();
+                if (newHash === currentHash) { return; }
+                currentHash = newHash;
+                ret.onchange.fire();
+            });
+        setInterval(checkhash, 250);
+        window.addEventListener("hashchange", checkhash, false);
+        return ret;
+    }
+
+    function initMenuManager(location) {
         var parent = element("div"),
             ret;
+        function newLink(title, link) {
+            var a = element("a", String(title));
+            a.href = link;
+            function updFocus() {
+                a.className = ("#" + location.getHash() === link) ?
+                        "selected" : "";
+            }
+            if (link.charAt(0) === "#") {
+                location.onchange.add(updFocus);
+                updFocus();
+            }
+            return a;
+        }
         parent.style.position = "fixed";
         parent.style.left = "20px";
         parent.style.top = "0px";
         document.body.appendChild(parent);
         ret = {
             addLink: function (title, link) {
-                var a = element("a", String(title));
-                a.href = link;
+                var a = newLink(title, link);
                 a = element("div", a);
                 a.className = "menu";
                 parent.appendChild(a);
@@ -156,9 +196,7 @@
                 }
                 subret = {
                     addLink: function (title, link) {
-                        var a = element("a", String(title));
-                        a.href = link;
-                        links.appendChild(a);
+                        links.appendChild(newLink(title, link));
                         return subret;
                     }
                 };
@@ -230,34 +268,6 @@
         setTimeout(f, 50);
     }
 
-    function initLocationManager() {
-        function readHash() {
-            if (window.location.hash) {
-                return String(window.location.hash).substring(1);
-            }
-            return "";
-        }
-        var currentHash = readHash(),
-            ret = {
-                onchange: makeEvent(),
-                setHash: function (h) {
-                    window.location = '#' + String(h);
-                },
-                getHash: function () {
-                    return currentHash;
-                }
-            },
-            checkhash = eventHandler(function () {
-                var newHash = readHash();
-                if (newHash === currentHash) { return; }
-                currentHash = newHash;
-                ret.onchange.fire();
-            });
-        setInterval(checkhash, 250);
-        window.addEventListener("hashchange", checkhash, false);
-        return ret;
-    }
-
     function addRightMenu(manager, selfid) {
         var menu = manager.addSubmenu("More Apps", true);
         function add(id, title) {
@@ -266,10 +276,8 @@
         }
         add("burn_canvas",        "Burn Canvas");
         add("canvasmeye",         "Canvas Magic Eye");
-        add("imagzag",            "Imagzag");
         add("js2dsim",            "2D Physics Simulation");
         add("jsspect",            "Spectral Analyzer");
-        add("plasmodrops",        "Plasmodrops");
         add("teflyjs",            "Terrain Fly JS");
         add("web_mandelbrot",     "Web Mandelbrot");
     }
@@ -279,8 +287,8 @@
         s.src = "apps/" + appid + ".js";
         document.body.appendChild(s);
         document.body.onload = eventHandler(function () {
-            var menu = initMenuManager(),
-                location = initLocationManager(),
+            var location = initLocationManager(),
+                menu = initMenuManager(location),
                 resizeEvent = makeEvent();
             addRightMenu(menu, appid);
             addCanvas(resizeEvent);
