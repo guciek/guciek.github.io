@@ -54,25 +54,14 @@ div#description
     color: #444;
 }
 
-div#description:after
-{
-    content: " ";
-    margin-right: 20px;
-}
-
-div#description *
+div.menu
 {
     text-align: left;
-}
-
-div#description div
-{
     position: relative;
-    display: block;
-    float: left;
+    display: inline-block;
 }
 
-div#description p, div#description a
+div.menu p, div.menu a
 {
     display: block;
     background: #fff;
@@ -81,37 +70,36 @@ div#description p, div#description a
     text-shadow: 1px 1px #bbb;
 }
 
-div#description p:hover, div#description a:hover,
-div#description div:hover p
+div.menu p:hover, div.menu a:hover,
+div.menu div:hover p
 {
     background: #bbb;
     color: #fff;
     text-shadow: 1px 1px #777;
 }
 
-div#description div div
+div.menu div
 {
     position: absolute;
     display: none;
-    float: none;
     left: 0px;
-    top: 20px;
+    top: 22px;
     width: 300px;
-    padding-top: 5px;
+    padding-top: 3px;
     border-bottom: 2px solid #888;
 }
 
-div#description div:hover div
+div.menu:hover div
 {
     display: block;
 }
 
-div#description div.right_menu
+div#xxx div.right_menu
 {
     float: right;
 }
 
-div#description div.right_menu div
+div#xxx div.right_menu div
 {
     left: auto;
     right: 0;

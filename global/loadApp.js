@@ -122,38 +122,38 @@
         };
     }
 
-    function menuManager() {
-        var parent = $("description"),
-            firstleft = true,
-            firstright = true,
+    function initMenuManager() {
+        var parent = element("div"),
             ret;
+        parent.style.position = "fixed";
+        parent.style.left = "20px";
+        parent.style.top = "0px";
+        document.body.appendChild(parent);
         ret = {
             addLink: function (title, link) {
                 var a = element("a", String(title));
                 a.href = link;
-                if (firstleft) {
-                    firstleft = false;
-                    a.style.marginLeft = "20px";
-                }
-                parent.appendChild(element("div", a));
+                a = element("div", a);
+                a.className = "menu";
+                parent.appendChild(a);
                 return ret;
             },
             addSubmenu: function (submenu, rightside) {
                 var menu = element("div", element("p", submenu)),
                     links = element("div"),
                     subret;
+                menu.className = "menu";
                 menu.appendChild(links);
                 if (rightside) {
-                    if (firstright) {
-                        firstright = false;
-                        menu.style.marginRight = "20px";
-                    }
-                    menu.className = "right_menu";
-                } else if (firstleft) {
-                    firstleft = false;
                     menu.style.marginLeft = "20px";
+                    menu.style.marginRight = "20px";
+                    menu.style.float = "right";
+                    links.style.left = "auto";
+                    links.style.right = "0px";
+                    $("description").appendChild(menu);
+                } else {
+                    parent.appendChild(menu);
                 }
-                parent.appendChild(menu);
                 subret = {
                     addLink: function (title, link) {
                         var a = element("a", String(title));
@@ -230,7 +230,7 @@
         setTimeout(f, 50);
     }
 
-    function locationManager() {
+    function initLocationManager() {
         function readHash() {
             if (window.location.hash) {
                 return String(window.location.hash).substring(1);
@@ -279,8 +279,8 @@
         s.src = "apps/" + appid + ".js";
         document.body.appendChild(s);
         document.body.onload = eventHandler(function () {
-            var menu = menuManager(),
-                location = locationManager(),
+            var menu = initMenuManager(),
+                location = initLocationManager(),
                 resizeEvent = makeEvent();
             addRightMenu(menu, appid);
             addCanvas(resizeEvent);

@@ -531,7 +531,7 @@ function jsspect(env) {
                 }
                 t += m / 8000;
                 t -= Math.floor(t);
-                data.push(Math.sin(t * 2 * Math.PI));
+                data.push(0.1*Math.sin(t * 2 * Math.PI));
             }
             onSampleData(data, 8000);
         }, 50);
