@@ -166,9 +166,7 @@
             }
             return a;
         }
-        parent.style.position = "fixed";
-        parent.style.left = "20px";
-        parent.style.top = "0px";
+        parent.id = "menubar";
         document.body.appendChild(parent);
         ret = {
             addLink: function (title, link) {

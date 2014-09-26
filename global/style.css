@@ -43,32 +43,47 @@ div#message
 div#description
 {
     position: fixed;
-    left: 0px;
+    right: 0px;
     top: 0px;
     width: 100%;
+    min-width: 1000px;
     border-bottom: 2px solid #888;
     text-align: right;
     color: #444;
 }
 
-div.menu
-{
-    text-align: left;
-    position: relative;
-    display: inline-block;
+div#description div.menu {
+    float: right;
 }
 
-div#description,
+div#description, div#menubar,
 div.menu p, div.menu a
 {
-    display: block;
     height: 23px;
     background: #fff;
     line-height: 23px;
 }
 
+div#menubar
+{
+    position: fixed;
+    left: 0px;
+    top: 0px;
+    padding-left: 20px;
+    text-align: left;
+}
+
+div.menu
+{
+    display: inline-block;
+    position: relative;
+    text-align: left;
+}
+
 div.menu p, div.menu a
 {
+    display: block;
+    overflow: hidden;
     padding: 0 10px;
     text-shadow: 1px 1px #bbb;
 }
@@ -95,15 +110,4 @@ div.menu div
 div.menu:hover div
 {
     display: block;
-}
-
-div#xxx div.right_menu
-{
-    float: right;
-}
-
-div#xxx div.right_menu div
-{
-    left: auto;
-    right: 0;
 }
