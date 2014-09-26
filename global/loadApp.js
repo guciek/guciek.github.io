@@ -122,6 +122,22 @@
         };
     }
 
+    function initMouseTracker() {
+        var x = -1,
+            y = -1,
+            onmove = eventHandler(function (e) {
+                if (e.pageX && e.pageY && (e.pageY >= 25)) {
+                    x = Number(e.pageX);
+                    y = Number(e.pageY) - 25;
+                }
+            });
+        window.addEventListener("mousemove", onmove, false);
+        return {
+            getX: function () { return x; },
+            getY: function () { return y; }
+        };
+    }
+
     function initLocationManager() {
         function readHash() {
             if (window.location.hash) {
@@ -287,6 +303,7 @@
         document.body.onload = eventHandler(function () {
             var location = initLocationManager(),
                 menu = initMenuManager(location),
+                mouse = initMouseTracker(),
                 resizeEvent = makeEvent();
             addRightMenu(menu, appid);
             addCanvas(resizeEvent);
@@ -295,6 +312,7 @@
                 eventHandler: eventHandler,
                 location: function () { return location; },
                 menu: function () { return menu; },
+                mouse: function () { return mouse; },
                 runOnNextFrame: runOnAnimationFrame,
                 runOnCanvasResize: resizeEvent.add,
                 runOnLocationChange: location.onchange.add,

@@ -93,7 +93,24 @@ function burn_canvas(env) {
         }
         onresize();
         env.runOnCanvasResize(onresize);
+        function updmouse() {
+            var newx = env.mouse().getX(),
+                newy = env.mouse().getY(),
+                dx = x - newx,
+                dy = y - newy;
+            if (newx < 0) { return; }
+            if (dx < 0) { dx = -dx; }
+            if (dy < 0) { dy = -dy; }
+            if (dx + dy > 0) {
+                reach -= 1 + Math.round(0.1 * (dx + dy));
+                if (reach < 50) { reach = 50; }
+                if (reach > 100) { reach = 100; }
+                x = newx;
+                y = newy;
+            }
+        }
         function onframe() {
+            updmouse();
             var w = view.canvas.width,
                 h = view.canvas.height,
                 x1 = x - reach,
@@ -113,7 +130,7 @@ function burn_canvas(env) {
             }
             if (reach < limit) {
                 reach += 1;
-            } else if (reach > 100) {
+            } else {
                 return;
             }
             if (x < 0) { return; }
@@ -130,26 +147,6 @@ function burn_canvas(env) {
             view.putImageData(i, x1, y1);
         }
         env.runOnNextFrame(onframe);
-        function onmove(e) {
-            if (e.changedTouches &&
-                    (e.changedTouches.length >= 1)) {
-                e = e.changedTouches[0];
-            }
-            var newx = Number(e.pageX),
-                newy = Number(e.pageY),
-                dx = x - newx,
-                dy = y - newy;
-            if (dx < 0) { dx = -dx; }
-            if (dy < 0) { dy = -dy; }
-            reach -= Math.round(0.1 * (dx + dy));
-            if (reach < 50) { reach = 50; }
-            if (reach > 100) { reach = 100; }
-            x = newx;
-            y = newy;
-            return false;
-        }
-        env.canvas().onmousemove = env.eventHandler(onmove);
-        env.canvas().ontouchmove = env.eventHandler(onmove);
     }
 
     initDraw();
