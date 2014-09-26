@@ -150,12 +150,6 @@ function burn_canvas(env) {
         }
         env.canvas().onmousemove = env.eventHandler(onmove);
         env.canvas().ontouchmove = env.eventHandler(onmove);
-        function prevent(e) {
-            try { e.preventDefault(); } catch (ignore) {}
-            return false;
-        }
-        env.canvas().onmousedown = prevent;
-        env.canvas().ontouchstart = prevent;
     }
 
     initDraw();
