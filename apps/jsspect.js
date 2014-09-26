@@ -60,16 +60,12 @@ function jsspect(env) {
 
     newSampleReceiver = (function () {
         var receivers = [],
-            isWorking = false,
             sampleRate = 8000;
         onSampleData = function (data, rate) {
             var i,
                 arr = [];
             if ((!data) || (data.length < 2)) {
                 return;
-            }
-            if (!isWorking) {
-                isWorking = true;
             }
             if (rate && (Number(rate) > 1000)) {
                 sampleRate = Number(rate);
@@ -90,7 +86,7 @@ function jsspect(env) {
                         receivers.push(function (data) {
                             if (!ok) { return; }
                             newsamples = newsamples.concat(data);
-                            if (newsamples.length > 10000) {
+                            if (newsamples.length > sampleRate * 3) {
                                 newsamples = [];
                                 ok = false;
                             }
@@ -109,9 +105,6 @@ function jsspect(env) {
                 },
                 sampleRate : function () {
                     return sampleRate;
-                },
-                isWorking: function () {
-                    return isWorking;
                 }
             };
         };
