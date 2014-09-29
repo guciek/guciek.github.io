@@ -118,33 +118,35 @@ function jsspect(env) {
             if (v > h) { v = h; }
             return v;
         }
-        function frame(c) {
+        function drawbar(c) {
             var v, m, i, a,
-                step = samplerec.sampleRate() / 80,
+                step = samplerec.sampleRate() / 200,
                 s = samplerec.getSamples(step);
-            while (s !== null) {
-                v = 0;
-                m = 0;
-                for (i = 0; i < s.length; i += 1) {
-                    a = Math.abs(s[i]);
-                    v += a;
-                    if (a > m) { m = a; }
-                }
-                v = map_val(v / s.length);
-                m = map_val(m);
-                lastx += 1;
-                if (lastx >= w) { lastx = 0; }
-                c.fillStyle = "rgb(255,255,255)";
-                c.fillRect((lastx + 3) % w, 0, 1, h);
-                c.fillStyle = "rgb(0,0,0)";
-                c.fillRect(lastx, h - v, 1, v);
-                c.fillStyle = "rgb(255,128,128)";
-                c.fillRect(lastx, h - m, 1, m - v);
-                s = samplerec.getSamples(step);
+            if (s === null) {
+                return false;
             }
+            v = 0;
+            m = 0;
+            for (i = 0; i < s.length; i += 1) {
+                a = Math.abs(s[i]);
+                v += a;
+                if (a > m) { m = a; }
+            }
+            v = map_val(v / s.length);
+            m = map_val(m);
+            lastx += 1;
+            if (lastx >= w) { lastx = 0; }
+            c.fillStyle = "rgb(255,255,255)";
+            c.fillRect((lastx + 3) % w, 0, 1, h);
+            c.fillStyle = "rgb(0,0,0)";
+            c.fillRect(lastx, h - v, 1, v);
+            c.fillStyle = "rgb(255,128,128)";
+            c.fillRect(lastx, h - m, 1, m - v);
+            s = samplerec.getSamples(step);
+            return true;
         }
         return {
-            frame: frame,
+            step: drawbar,
             setsize: function (width, height) {
                 w = width;
                 h = height;
@@ -319,7 +321,7 @@ function jsspect(env) {
             viewsize = 3.86,
             updated = false,
             maxval = 0,
-            frame;
+            step;
         function y_to_freq(y) {
             return Math.exp(viewleft + viewsize * (1 - y / (h - 1)));
         }
@@ -356,7 +358,7 @@ function jsspect(env) {
                 }
             }
         }
-        frame = (function () {
+        step = (function () {
             var lastx = -1, vline;
             return function (c) {
                 var y, freq, rgb;
@@ -368,26 +370,28 @@ function jsspect(env) {
                     c.fillRect(w - 20, 0, 20, h);
                     drawkeys(c, w - 20, 20);
                 }
-                while (freqrec.nextStep()) {
-                    maxval *= 0.99;
-                    lastx += 1;
-                    if (lastx >= (w - 20)) { lastx = 0; }
-                    c.fillStyle = "rgb(255,255,255)";
-                    c.fillRect((lastx + 3) % (w - 20), 0, 1, h);
-                    for (y = 0; y < h; y += 1) {
-                        freq = y_to_freq(y);
-                        rgb = color(getval(freq));
-                        vline.data[y * 4] = rgb.r;
-                        vline.data[y * 4 + 1] = rgb.g;
-                        vline.data[y * 4 + 2] = rgb.b;
-                        vline.data[y * 4 + 3] = 255;
-                    }
-                    c.putImageData(vline, lastx, 0);
+                if (!freqrec.nextStep()) {
+                    return false;
                 }
+                maxval *= 0.99;
+                lastx += 1;
+                if (lastx >= (w - 20)) { lastx = 0; }
+                c.fillStyle = "rgb(255,255,255)";
+                c.fillRect((lastx + 3) % (w - 20), 0, 1, h);
+                for (y = 0; y < h; y += 1) {
+                    freq = y_to_freq(y);
+                    rgb = color(getval(freq));
+                    vline.data[y * 4] = rgb.r;
+                    vline.data[y * 4 + 1] = rgb.g;
+                    vline.data[y * 4 + 2] = rgb.b;
+                    vline.data[y * 4 + 3] = 255;
+                }
+                c.putImageData(vline, lastx, 0);
+                return true;
             };
         }());
         return {
-            frame: frame,
+            step: step,
             setsize: function (width, height) {
                 w = width;
                 h = height;
@@ -423,7 +427,7 @@ function jsspect(env) {
                 if (maxval > 0) { v /= maxval; }
                 return v;
             },
-            frame = (function () {
+            step = (function () {
                 var cx, cy, dx, dy, dw, dh, loopa = [], loopx = [], loopy = [];
                 return function (c) {
                     var i, rgb;
@@ -444,20 +448,22 @@ function jsspect(env) {
                             loopy[i] = Math.floor(cy - 26 * Math.cos(loopa[i]));
                         }
                     }
-                    while (freqrec.nextStep()) {
-                        c.drawImage(c.canvas, dx, dy, dw, dh);
-                        maxval *= 0.999;
-                        for (i = 0; i < 80; i += 1) {
-                            rgb = color(getvalangle(loopa[i]));
-                            c.fillStyle = "rgb(" + rgb.r + "," +
-                                rgb.g + "," + rgb.b + ")";
-                            c.fillRect(loopx[i], loopy[i], 2, 2);
-                        }
+                    if (!freqrec.nextStep()) {
+                        return false;
                     }
+                    c.drawImage(c.canvas, dx, dy, dw, dh);
+                    maxval *= 0.999;
+                    for (i = 0; i < 80; i += 1) {
+                        rgb = color(getvalangle(loopa[i]));
+                        c.fillStyle = "rgb(" + rgb.r + "," +
+                            rgb.g + "," + rgb.b + ")";
+                        c.fillRect(loopx[i], loopy[i], 2, 2);
+                    }
+                    return true;
                 };
             }());
         return {
-            frame: frame,
+            step: step,
             setsize: function (width, height) {
                 w = width;
                 h = height;
@@ -482,7 +488,7 @@ function jsspect(env) {
             view.fillRect(0, 0, w, h);
             view.fillStyle = "rgb(255,255,255)";
             graph.setsize(w, h);
-            graph.frame(view);
+            graph.step(view);
         }
         function setmode() {
             var m = env.location().getHash();
@@ -499,13 +505,16 @@ function jsspect(env) {
             redraw();
         }
         function step() {
-            graph.frame(view);
-            env.runOnNextFrame(step);
+            if (graph.step(view)) {
+                env.runOnNextIdle(step);
+            } else {
+                env.runOnNextFrame(step);
+            }
         }
         setmode();
         env.runOnCanvasResize(redraw);
         env.runOnLocationChange(setmode);
-        env.runOnNextFrame(step);
+        env.runOnNextIdle(step);
     }
 
     function genTestInput() {
