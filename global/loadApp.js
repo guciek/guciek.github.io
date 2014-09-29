@@ -156,6 +156,12 @@
                 },
                 getHash: function () {
                     return currentHash;
+                },
+                getPath: function () {
+                    if (window.location.pathname) {
+                        return String(window.location.pathname).substring(1);
+                    }
+                    return "";
                 }
             },
             checkhash = eventHandler(function () {
@@ -173,7 +179,8 @@
         var parent = element("div"),
             ret;
         function newLink(title, link) {
-            var a = element("a", String(title));
+            var a = element("a", String(title)),
+                path = location.getPath();
             a.href = link;
             function updFocus() {
                 a.className = ("#" + location.getHash() === link) ?
@@ -182,6 +189,8 @@
             if (link.charAt(0) === "#") {
                 location.onchange.add(updFocus);
                 updFocus();
+            } else if (path.substring(path.length - link.length) === link) {
+                a.className = "selected";
             }
             return a;
         }
@@ -318,18 +327,17 @@
         return run;
     }
 
-    function addRightMenu(manager, selfid) {
+    function addRightMenu(manager) {
         var menu = manager.addSubmenu("More Apps", true);
         function add(id, title) {
-            if (id === selfid) { return; }
             menu.addLink(title, id + ".html");
         }
         add("burn_canvas",        "Burn Canvas");
         add("canvasmeye",         "Canvas Magic Eye");
-        add("js2dsim",            "2D Physics Simulation");
-        add("jsspect",            "Spectral Analyzer");
-        add("teflyjs",            "Terrain Fly JS");
+        add("jsspect",            "JSSpect");
         add("web_mandelbrot",     "Web Mandelbrot");
+        add("js2dsim",            "Physics Simulation Demo");
+        add("teflyjs",            "3D Terrain Demo");
     }
 
     function loadApp(appid) {
@@ -342,7 +350,7 @@
                 mouse = initMouseTracker(),
                 runOnIdle = initRunOnIdle(),
                 resizeEvent = makeEvent();
-            addRightMenu(menu, appid);
+            addRightMenu(menu);
             addCanvas(resizeEvent);
             window[appid]({
                 canvas: function () { return $("canvas"); },
