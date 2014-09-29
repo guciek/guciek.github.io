@@ -86,7 +86,7 @@
         try {
             if ($("error").style.display !== "block") {
                 $("error").style.display = "block";
-                $("error").innerHTML = msg;
+                $("error").textContent = msg;
             }
             console.debug(msg);
         } catch (err) {
@@ -149,7 +149,10 @@
             ret = {
                 onchange: makeEvent(),
                 setHash: function (h) {
-                    window.location = '#' + String(h);
+                    h = String(h);
+                    if (readHash() !== h) {
+                        window.location = '#' + h;
+                    }
                 },
                 getHash: function () {
                     return currentHash;
@@ -282,6 +285,37 @@
         setTimeout(f, 50);
     }
 
+    function initRunOnIdle() {
+        var todo;
+
+        function run(fn) {
+            var done = false,
+                process = eventHandler(function () {
+                    if (!done) {
+                        done = true;
+                        fn();
+                    }
+                });
+            todo = process;
+            setTimeout(process, 50);
+            window.postMessage("todo_idle", "*");
+        }
+
+        window.addEventListener(
+            "message",
+            function handleMessage(ev) {
+                if (ev.data === "todo_idle") {
+                    if (todo) { todo(); }
+                    event.stopPropagation();
+                    return false;
+                }
+            },
+            true
+        );
+
+        return run;
+    }
+
     function addRightMenu(manager, selfid) {
         var menu = manager.addSubmenu("More Apps", true);
         function add(id, title) {
@@ -304,6 +338,7 @@
             var location = initLocationManager(),
                 menu = initMenuManager(location),
                 mouse = initMouseTracker(),
+                runOnIdle = initRunOnIdle(),
                 resizeEvent = makeEvent();
             addRightMenu(menu, appid);
             addCanvas(resizeEvent);
@@ -314,6 +349,7 @@
                 menu: function () { return menu; },
                 mouse: function () { return mouse; },
                 runOnNextFrame: runOnAnimationFrame,
+                runOnNextIdle: runOnIdle,
                 runOnCanvasResize: resizeEvent.add,
                 runOnLocationChange: location.onchange.add,
                 showMessage: showMessage
