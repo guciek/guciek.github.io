@@ -304,11 +304,13 @@
         window.addEventListener(
             "message",
             function handleMessage(ev) {
-                if (ev.data === "todo_idle") {
-                    if (todo) { todo(); }
-                    event.stopPropagation();
-                    return false;
-                }
+                try {
+                    if (ev.data === "todo_idle") {
+                        if (todo) { todo(); }
+                        ev.stopPropagation();
+                        return false;
+                    }
+                } catch (ignore) {}
             },
             true
         );
