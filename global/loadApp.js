@@ -161,7 +161,11 @@ function loadApp(appid) {
                 },
                 getPath: function () {
                     if (window.location.pathname) {
-                        return String(window.location.pathname).substring(1);
+                        var p = String(window.location.pathname);
+                        if (p.charAt(p.length - 1) === "/") {
+                            p += "index.html";
+                        }
+                        return p;
                     }
                     return "";
                 }
@@ -195,8 +199,16 @@ function loadApp(appid) {
                     updFocus();
                 } else if (link.substring(0, 4) === "http") {
                     a.target = "_blank";
-                } else if (path.substring(path.length - link.length) === link) {
-                    a.className = "selected";
+                } else {
+                    if (link.charAt(0) !== "/") {
+                        link = "/" + link;
+                    }
+                    if (link === "/") {
+                        link += "index.html";
+                    }
+                    if (path.substring(path.length - link.length) === link) {
+                        a.className = "selected";
+                    }
                 }
             } else if (typeof link === "function") {
                 a.href = "#";
@@ -389,10 +401,10 @@ function loadApp(appid) {
             addLink("Web Mandelbrot",      "web_mandelbrot.html").
             addLine().
             addText("Demos:").
-            addLink("3D Terrain",     "teflyjs.html").
-            addLink("Ball Bowl",        "js2dsim.html").
-            addLink("Burn Canvas",    "burn_canvas.html").
-            addLink("Main Page",    "/").
+            addLink("3D Terrain",          "teflyjs.html").
+            addLink("Ball Bowl",           "js2dsim.html").
+            addLink("Burn Canvas",         "burn_canvas.html").
+            addLink("Main Page",           "/").
             addLine().
             addText('Contact: ' +
                     'k.gucciek@gmail.com with a single "c" instead of "cc".');
