@@ -132,6 +132,8 @@
                 }
             });
         window.addEventListener("mousemove", onmove, false);
+        window.addEventListener("mousedown", onmove, false);
+        window.addEventListener("mouseup", onmove, false);
         return {
             getX: function () { return x; },
             getY: function () { return y; }
@@ -175,9 +177,10 @@
         return ret;
     }
 
-    function initMenuManager(location) {
-        var parent = element("div"),
-            ret;
+    function menuManager(location) {
+        var parent,
+            ret,
+            prev_right;
         function newLink(title, link) {
             var a = element("a", String(title)),
                 path = location.getPath();
@@ -190,6 +193,8 @@
                 if (link.charAt(0) === "#") {
                     location.onchange.add(updFocus);
                     updFocus();
+                } else if (link.substring(0, 4) === "http") {
+                    a.target = "_blank";
                 } else if (path.substring(path.length - link.length) === link) {
                     a.className = "selected";
                 }
@@ -215,8 +220,21 @@
             }
             return a;
         }
-        parent.id = "menubar";
-        document.body.appendChild(parent);
+        try {
+            parent = $("menubar");
+        } catch (err) {
+            parent = element("div");
+            parent.id = "menubar";
+            document.body.appendChild(parent);
+        }
+        (function () {
+            var i, a = parent.getElementsByTagName("a");
+            for (i = 0; i < a.length; i += 1) {
+                if (a[i].href.substring(0, 4) === "http") {
+                    a[i].target = "_blank";
+                }
+            }
+        }());
         ret = {
             addLink: function (title, link) {
                 var a = newLink(title, link);
@@ -232,8 +250,13 @@
                 menu.className = "menu";
                 menu.appendChild(links);
                 if (rightside) {
+                    if (prev_right) {
+                        prev_right.style.marginLeft = "0px";
+                    } else {
+                        menu.style.marginRight = "20px";
+                    }
+                    prev_right = menu;
                     menu.style.marginLeft = "20px";
-                    menu.style.marginRight = "20px";
                     menu.style.float = "right";
                     links.style.left = "auto";
                     links.style.right = "0px";
@@ -248,6 +271,10 @@
                     },
                     addLine: function () {
                         links.appendChild(element("hr"));
+                        return subret;
+                    },
+                    addText: function (str) {
+                        links.appendChild(element("p", String(str)));
                         return subret;
                     }
                 };
@@ -355,14 +382,20 @@
     }
 
     function addRightMenu(manager) {
-        var menu = manager.addSubmenu("More Apps", true);
-        menu.addLink("Canvas Magic Eye",    "canvasmeye.html");
-        menu.addLink("JSSpect",             "jsspect.html");
-        menu.addLink("Web Mandelbrot",      "web_mandelbrot.html");
-        menu.addLine();
-        menu.addLink("3D Terrain Demo",     "teflyjs.html");
-        menu.addLink("Burn Canvas Demo",    "burn_canvas.html");
-        menu.addLink("Physics Demo",        "js2dsim.html");
+        manager.addSubmenu("More Apps", true).
+            addText("Apps:").
+            addLink("Canvas Magic Eye",    "canvasmeye.html").
+            addLink("JSSpect",             "jsspect.html").
+            addLink("Web Mandelbrot",      "web_mandelbrot.html").
+            addLine().
+            addText("Demos:").
+            addLink("3D Terrain",     "teflyjs.html").
+            addLink("Ball Bowl",        "js2dsim.html").
+            addLink("Burn Canvas",    "burn_canvas.html").
+            addLink("Main Page",    "index.html").
+            addLine().
+            addText('Contact: ' +
+                    'k.gucciek@gmail.com with a single "c" instead of "cc".');
     }
 
     function loadApp(appid) {
@@ -371,7 +404,7 @@
         document.body.appendChild(s);
         document.body.onload = eventHandler(function () {
             var location = initLocationManager(),
-                menu = initMenuManager(location),
+                menu = menuManager(location),
                 mouse = initMouseTracker(),
                 runOnIdle = initRunOnIdle(),
                 resizeEvent = makeEvent();

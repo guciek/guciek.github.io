@@ -88,8 +88,7 @@ div.menu p, div.menu a
     text-shadow: 1px 1px #bbb;
 }
 
-div.menu p:hover, div.menu a:hover,
-div.menu div:hover p, div.menu a.selected
+div.menu:hover p, div.menu a:hover, div.menu a.selected
 {
     background: #bbb;
     color: #fff;
@@ -105,6 +104,17 @@ div.menu div
     width: 300px;
     padding-top: 3px;
     border-bottom: 2px solid #888;
+}
+
+div.menu div p, div.menu:hover div p {
+    height: auto;
+    background: #fff;
+    color: #666;
+    text-shadow: none;
+    font-size: 11px;
+    line-height: 17px;
+    padding-top: 3px;
+    padding-bottom: 3px;
 }
 
 div.menu hr {
