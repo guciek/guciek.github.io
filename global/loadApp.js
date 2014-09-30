@@ -241,6 +241,8 @@
                         ((canvas.width !== w) || (canvas.height !== h))) {
                     canvas.width = w;
                     canvas.height = h;
+                    canvas.style.width = w + "px";
+                    canvas.style.height = h + "px";
                     resizeEvent.fire();
                 }
             });
@@ -336,7 +338,7 @@
         add("canvasmeye",         "Canvas Magic Eye");
         add("jsspect",            "JSSpect");
         add("web_mandelbrot",     "Web Mandelbrot");
-        add("js2dsim",            "Physics Simulation Demo");
+        add("js2dsim",            "Physics Demo");
         add("teflyjs",            "3D Terrain Demo");
     }
 

@@ -279,14 +279,14 @@ function web_mandelbrot(env) {
             }
         };
 
-        function calc() {
+        function onidle() {
             if (draw.step()) {
-                env.runOnNextIdle(calc);
+                env.runOnNextIdle(onidle);
             } else {
-                env.runOnNextFrame(calc);
+                env.runOnNextFrame(onidle);
             }
         }
-        env.runOnNextIdle(calc);
+        env.runOnNextIdle(onidle);
 
         env.menu().addSubmenu("Reset").
             addLink("Low Precision", "#-0.5;0;2;300").

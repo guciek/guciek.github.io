@@ -110,6 +110,7 @@ function burn_canvas(env) {
             }
         }
         function onframe() {
+            env.runOnNextFrame(onframe);
             updmouse();
             var w = view.canvas.width,
                 h = view.canvas.height,
@@ -120,7 +121,6 @@ function burn_canvas(env) {
                 i,
                 effect = env.location().getHash() || "burn",
                 limit = 100;
-            env.runOnNextFrame(onframe);
             if (effect === "unlimited") {
                 effect = "burn";
                 limit = 1000;

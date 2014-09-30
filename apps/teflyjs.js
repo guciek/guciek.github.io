@@ -70,22 +70,34 @@ function teflyjs(env) {
     function init() {
         var t = 0,
             view,
-            draw_funcs = [];
+            draw_funcs = [],
+            w = 400,
+            h = 300;
         try {
             view = env.canvas().getContext('2d');
         } catch (err) {
             throw "Your web browser does not support " +
                 "the <canvas> element!";
         }
-        env.runOnCanvasResize(function () {
+        function onresize() {
             draw_funcs = [];
-        });
-        function step() {
-            env.runOnNextFrame(step);
-            var w = view.canvas.width,
-                h = view.canvas.height,
-                camrx = 8 * env.mouse().getX() / w,
-                camry = -env.mouse().getY() / h,
+            w = view.canvas.width;
+            h = view.canvas.height;
+            if (h > 300) {
+                w = Math.round(300 * w / h);
+                h = 300;
+                view.canvas.width = w;
+                view.canvas.height = h;
+            }
+            view.fillStyle = '#ccc';
+            view.fillRect(0, 0, w, h);
+        }
+        onresize();
+        env.runOnCanvasResize(onresize);
+        function onframe() {
+            env.runOnNextFrame(onframe);
+            var camrx = 7 * env.mouse().getX() / w,
+                camry = -env.mouse().getY() / (h * 2),
                 f;
             f = Math.floor(camrx / (Math.PI / 4));
             while (f < 0) { f += 8; }
@@ -93,7 +105,6 @@ function teflyjs(env) {
             if (!draw_funcs[f]) {
                 draw_funcs[f] = compile_draw_fun(f, w, h);
             }
-            t += 0.05;
             view.fillStyle = '#ccc';
             view.fillRect(0, 0, w, h);
             draw_funcs[f](
@@ -105,7 +116,10 @@ function teflyjs(env) {
                 camry
             );
         }
-        env.runOnNextFrame(step);
+        env.runOnNextFrame(onframe);
+        setInterval(function () {
+            t += 0.01;
+        }, 10);
     }
 
     init();

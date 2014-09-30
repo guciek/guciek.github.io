@@ -198,14 +198,14 @@ function canvasmeye(env) {
         env.runOnCanvasResize(function () {
             d = draw(c);
         });
-        function step() {
+        function onidle() {
             if (d.step()) {
-                env.runOnNextIdle(step);
+                env.runOnNextIdle(onidle);
             } else {
-                env.runOnNextFrame(step);
+                env.runOnNextFrame(onidle);
             }
         }
-        env.runOnNextIdle(step);
+        env.runOnNextIdle(onidle);
     }
 
     init();

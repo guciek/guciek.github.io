@@ -504,17 +504,17 @@ function jsspect(env) {
             }
             redraw();
         }
-        function step() {
+        function onidle() {
             if (graph.step(view)) {
-                env.runOnNextIdle(step);
+                env.runOnNextIdle(onidle);
             } else {
-                env.runOnNextFrame(step);
+                env.runOnNextFrame(onidle);
             }
         }
+        env.runOnNextIdle(onidle);
         setmode();
         env.runOnCanvasResize(redraw);
         env.runOnLocationChange(setmode);
-        env.runOnNextIdle(step);
     }
 
     function genTestInput() {
