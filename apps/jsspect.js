@@ -543,7 +543,8 @@ function jsspect(env) {
     }
 
     function initCapture(lms) {
-        env.showMessage("Waiting for samples...");
+        env.showMessage("Waiting for samples..." +
+            " (warning: a bug in Chrome might prevent this from working)");
         window.AudioContext = window.AudioContext || window.webkitAudioContext;
         var context = new window.AudioContext(),
             proc = context.createScriptProcessor(2048, 1, 0);
