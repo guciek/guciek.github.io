@@ -107,6 +107,12 @@ div.menu div
     border-bottom: 2px solid #888;
 }
 
+div.menu hr {
+    height: 0;
+    border: none;
+    border-bottom: 2px solid #888;
+}
+
 div.menu:hover div
 {
     display: block;

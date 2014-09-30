@@ -37,38 +37,12 @@ function canvasmeye(env) {
         return c;
     }
 
-    function example_image(w, h) {
-        var r = w;
-        if (h < w) { r = h; }
-        r *= 0.5;
-        return function (x, y) {
-            var mdist = Math.sqrt((y - h / 2) * (y - h / 2) +
-                    (x - w / 2) * (x - w / 2)),
-                ret = 0;
-            if (mdist < r * 0.3) {
-                ret = 0.5 + Math.sqrt(r * r * 0.09 - mdist * mdist) / 300;
-            } else if (mdist > r * 0.8) {
-                mdist /= r;
-                mdist -= 0.8;
-                mdist /= 6;
-                if (mdist > 0.1) { mdist = 0.1; }
-                ret = (Math.sin(x * 0.03) * Math.sin(y * 0.03) + 1) * mdist;
-            } else if (mdist > r * 0.6) {
-                ret = 1;
-            }
-            if (ret < 0.0) { ret = 0.0; }
-            if (ret > 1.0) { ret = 1.0; }
-            return ret;
-        };
-    }
-
-    function draw(c) {
+    function draw(c, templ_w, image) {
         var w = c.canvas.width,
             h = c.canvas.height,
-            templ_w = 100,
             templ = pattern(templ_w, h),
-            drawy = 0,
-            image = example_image(w - templ_w, h);
+            drawy = 0;
+        image = image(w - templ_w, h);
         function height(x, y) {
             if (x < templ_w) {
                 return 0;
@@ -186,18 +160,90 @@ function canvasmeye(env) {
         };
     }
 
+    function image_example(w, h) {
+        if ((w < 200) || (h < 200)) {
+            return function () { return 0; };
+        }
+        var r = w;
+        if (h < w) { r = h; }
+        r *= 0.5;
+        return function (x, y) {
+            var mdist = Math.sqrt((y - h / 2) * (y - h / 2) +
+                    (x - w / 2) * (x - w / 2)),
+                ret = 0;
+            if (mdist < r * 0.3) {
+                ret = 0.5 + Math.sqrt(r * r * 0.09 - mdist * mdist) / 300;
+            } else if (mdist > r * 0.8) {
+                mdist /= r;
+                mdist -= 0.8;
+                mdist /= 6;
+                if (mdist > 0.1) { mdist = 0.1; }
+                ret = (Math.sin(x * 0.03) * Math.sin(y * 0.03) + 1) * mdist;
+            } else if (mdist > r * 0.6) {
+                ret = 1;
+            }
+            if (ret < 0.0) { ret = 0.0; }
+            if (ret > 1.0) { ret = 1.0; }
+            return ret;
+        };
+    }
+
+    function image_loaded(i) {
+        return function (fullw, fullh) {
+            if ((fullw < 200) || (fullh < 200)) {
+                return function () { return 0; };
+            }
+            var scale = (fullw / i.width) > (fullh / i.height) ?
+                    fullh / i.height : fullw / i.width,
+                w = Math.round(scale * i.width),
+                h = Math.round(scale * i.height),
+                scaled = document.createElement("canvas").getContext("2d");
+            scaled.canvas.width = w;
+            scaled.canvas.height = h;
+            scaled.fillStyle = "rgb(255,255,255)";
+            scaled.fillRect(0, 0, w, h);
+            scaled.drawImage(i, 0, 0, w, h);
+            scaled = scaled.getImageData(0, 0, w, h).data;
+            function value(x, y) {
+                return (
+                    1 - (
+                        scaled[(y * w + x) * 4] +
+                        scaled[(y * w + x) * 4 + 1] +
+                        scaled[(y * w + x) * 4 + 2]
+                    ) / (255 * 3)
+                );
+            }
+            return function (x, y) {
+                x -= (fullw - w) / 2;
+                y -= (fullh - h) / 2;
+                x = Math.round(x);
+                y = Math.round(y);
+                if (x < 0) { return value(0, 0); }
+                if (y < 0) { return value(0, 0); }
+                if (x >= w) { return value(0, 0); }
+                if (y >= h) { return value(0, 0); }
+                return value(x, y);
+            };
+        };
+    }
+
     function init() {
-        var c, d;
+        var c, d, width = 100, image = image_example;
+
         try {
             c = env.canvas().getContext("2d");
         } catch (err) {
             throw "Your web browser does not support " +
                 "the <canvas> element!";
         }
-        d = draw(c);
-        env.runOnCanvasResize(function () {
-            d = draw(c);
-        });
+
+        function redraw() {
+            c.fillStyle = "rgb(200,200,200)";
+            c.fillRect(0, 0, c.canvas.width, c.canvas.height);
+            d = draw(c, width, image);
+        }
+        env.runOnCanvasResize(redraw);
+
         function onidle() {
             if (d.step()) {
                 env.runOnNextIdle(onidle);
@@ -206,6 +252,45 @@ function canvasmeye(env) {
             }
         }
         env.runOnNextIdle(onidle);
+
+        function onhashchange() {
+            var h = env.location().getHash();
+            if (h.substring(0, 2) === "w=") {
+                h = parseInt(h.substring(2), 10);
+                if (h && (h >= 50) && (h <= 200)) {
+                    width = h;
+                }
+            }
+            env.location().setHash("w=" + width);
+            redraw();
+        }
+        onhashchange();
+        env.runOnLocationChange(onhashchange);
+
+        env.menu().addSubmenu("Parallax").
+            addLink("Narrow", "#w=70").
+            addLink("Normal", "#w=100").
+            addLink("Wide", "#w=150").
+            addLink("Extra Wide", "#w=200");
+
+        (function () {
+            var inp = document.createElement("input");
+            inp.type = "file";
+            env.menu().addLink("Custom Image", inp);
+            inp.onchange = env.eventHandler(function () {
+                if (inp.files.length < 1) { return; }
+                var fr = new window.FileReader();
+                fr.onload = env.eventHandler(function (ev) {
+                    var img = document.createElement("img");
+                    img.onload = env.eventHandler(function () {
+                        image = image_loaded(img);
+                        redraw();
+                    });
+                    img.src = ev.target.result;
+                });
+                fr.readAsDataURL(inp.files[0]);
+            });
+        }());
     }
 
     init();

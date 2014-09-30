@@ -181,16 +181,37 @@
         function newLink(title, link) {
             var a = element("a", String(title)),
                 path = location.getPath();
-            a.href = link;
             function updFocus() {
                 a.className = ("#" + location.getHash() === link) ?
                         "selected" : "";
             }
-            if (link.charAt(0) === "#") {
-                location.onchange.add(updFocus);
-                updFocus();
-            } else if (path.substring(path.length - link.length) === link) {
-                a.className = "selected";
+            if (typeof link === "string") {
+                a.href = link;
+                if (link.charAt(0) === "#") {
+                    location.onchange.add(updFocus);
+                    updFocus();
+                } else if (path.substring(path.length - link.length) === link) {
+                    a.className = "selected";
+                }
+            } else if (typeof link === "function") {
+                a.href = "#";
+                a.onclick = function (ev) {
+                    eventHandler(link)();
+                    ev.preventDefault();
+                    return false;
+                };
+            } else if ((typeof link === "object") && (link.nodeType === 1)) {
+                a.style.position = "relative";
+                link.style.position = "absolute";
+                link.style.left = "0px";
+                link.style.top = "0px";
+                link.style.width = "100%";
+                link.style.height = "100%";
+                link.style.cursor = "pointer";
+                link.style.opacity = "0";
+                a.appendChild(link);
+            } else {
+                throw "Invalid link";
             }
             return a;
         }
@@ -223,6 +244,10 @@
                 subret = {
                     addLink: function (title, link) {
                         links.appendChild(newLink(title, link));
+                        return subret;
+                    },
+                    addLine: function () {
+                        links.appendChild(element("hr"));
                         return subret;
                     }
                 };
@@ -331,15 +356,13 @@
 
     function addRightMenu(manager) {
         var menu = manager.addSubmenu("More Apps", true);
-        function add(id, title) {
-            menu.addLink(title, id + ".html");
-        }
-        add("burn_canvas",        "Burn Canvas");
-        add("canvasmeye",         "Canvas Magic Eye");
-        add("jsspect",            "JSSpect");
-        add("web_mandelbrot",     "Web Mandelbrot");
-        add("js2dsim",            "Physics Demo");
-        add("teflyjs",            "3D Terrain Demo");
+        menu.addLink("Canvas Magic Eye",    "canvasmeye.html");
+        menu.addLink("JSSpect",             "jsspect.html");
+        menu.addLink("Web Mandelbrot",      "web_mandelbrot.html");
+        menu.addLine();
+        menu.addLink("3D Terrain Demo",     "teflyjs.html");
+        menu.addLink("Burn Canvas Demo",    "burn_canvas.html");
+        menu.addLink("Physics Demo",        "js2dsim.html");
     }
 
     function loadApp(appid) {
