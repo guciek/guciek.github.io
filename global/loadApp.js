@@ -3,7 +3,7 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, version 2 or 3.
 
-(function () {
+function loadApp(appid) {
     "use strict";
 
     Array.prototype.forEach = function (f) {
@@ -392,17 +392,20 @@
             addLink("3D Terrain",     "teflyjs.html").
             addLink("Ball Bowl",        "js2dsim.html").
             addLink("Burn Canvas",    "burn_canvas.html").
-            addLink("Main Page",    "index.html").
+            addLink("Main Page",    "/").
             addLine().
             addText('Contact: ' +
                     'k.gucciek@gmail.com with a single "c" instead of "cc".');
     }
 
-    function loadApp(appid) {
+    function startLoad() {
+        $("error").style.display = "none";
+        showMessage("Loading...");
         var s = element("script");
         s.src = "apps/" + appid + ".js";
         document.body.appendChild(s);
         document.body.onload = eventHandler(function () {
+            showMessage();
             var location = initLocationManager(),
                 menu = menuManager(location),
                 mouse = initMouseTracker(),
@@ -425,10 +428,5 @@
         });
     }
 
-    eventHandler(function () {
-        $("error").style.display = "none";
-        var path = String(window.location).split("/");
-        path = path[path.length - 1].split(".")[0];
-        loadApp(path || "index");
-    })();
-}());
+    eventHandler(startLoad)();
+}
