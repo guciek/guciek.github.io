@@ -310,11 +310,8 @@ function loadApp(appid) {
                     resizeEvent.fire();
                 }
             });
-        canvas.style.left = "0px";
-        canvas.style.top = "25px";
-        canvas.style.position = "fixed";
         canvas.id = "canvas";
-        document.body.insertBefore(canvas, document.body.childNodes[0]);
+        $("content").appendChild(canvas);
         window.onresize = onResize;
         setInterval(onResize, 1000);
         onResize();
@@ -411,6 +408,9 @@ function loadApp(appid) {
     }
 
     function startLoad() {
+        while ($("content").childNodes.length > 0) {
+            $("content").removeChild($("content").childNodes[0]);
+        }
         $("error").style.display = "none";
         showMessage("Loading...");
         var s = element("script");

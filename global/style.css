@@ -52,6 +52,21 @@ div#description
     color: #444;
 }
 
+div#content
+{
+    position: fixed;
+    left: 0px;
+    top: 25px;
+    width: 100%;
+    height: 100%;
+}
+
+div#content img
+{
+    width: 100%;
+    height: 100%;
+}
+
 div#description div.menu {
     float: right;
 }
