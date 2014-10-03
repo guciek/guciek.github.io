@@ -367,7 +367,8 @@ function js2dsim(env) {
             w = world(),
             scale = 1,
             centerX = 0,
-            centerY = 2.5;
+            centerY = 2.5,
+            simTimeSinceRedraw = 0;
 
         try {
             c = env.canvas().getContext('2d');
@@ -384,6 +385,7 @@ function js2dsim(env) {
         });
 
         function redraw() {
+            simTimeSinceRedraw = 0;
             scale = (c.canvas.width > c.canvas.height ?
                     c.canvas.height : c.canvas.width) / 5.5;
             c.save();
@@ -404,7 +406,9 @@ function js2dsim(env) {
         env.runOnCanvasResize(redraw);
 
         function onframe() {
-            redraw();
+            if (simTimeSinceRedraw >= 0.03) {
+                redraw();
+            }
             env.runOnNextFrame(onframe);
         }
         env.runOnNextFrame(onframe);
@@ -430,6 +434,7 @@ function js2dsim(env) {
                     return;
                 }
                 todoTime -= simStep;
+                simTimeSinceRedraw += simStep;
                 w.step(simStep);
                 env.runOnNextIdle(onidle);
             }
