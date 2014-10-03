@@ -407,37 +407,46 @@ function loadApp(appid) {
                     'k.gucciek@gmail.com with a single "c" instead of "cc".');
     }
 
+    function runApp(appFun) {
+        showMessage();
+        var location = initLocationManager(),
+            menu = menuManager(location),
+            mouse = initMouseTracker(),
+            runOnIdle = initRunOnIdle(),
+            resizeEvent = makeEvent();
+        addRightMenu(menu);
+        addCanvas(resizeEvent);
+        appFun({
+            canvas: function () { return $("canvas"); },
+            eventHandler: eventHandler,
+            location: function () { return location; },
+            menu: function () { return menu; },
+            mouse: function () { return mouse; },
+            runOnNextFrame: runOnAnimationFrame,
+            runOnNextIdle: runOnIdle,
+            runOnCanvasResize: resizeEvent.add,
+            runOnLocationChange: location.onchange.add,
+            showMessage: showMessage
+        });
+    }
+
     function startLoad() {
         while ($("content").childNodes.length > 0) {
             $("content").removeChild($("content").childNodes[0]);
         }
         $("error").style.display = "none";
         showMessage("Loading...");
-        var s = element("script");
+        var s = element("script"),
+            check = eventHandler(function () {
+                if (window[appid]) {
+                    runApp(window[appid]);
+                } else {
+                    setTimeout(check, 50);
+                }
+            });
         s.src = "apps/" + appid + ".js";
         document.body.appendChild(s);
-        document.body.onload = eventHandler(function () {
-            showMessage();
-            var location = initLocationManager(),
-                menu = menuManager(location),
-                mouse = initMouseTracker(),
-                runOnIdle = initRunOnIdle(),
-                resizeEvent = makeEvent();
-            addRightMenu(menu);
-            addCanvas(resizeEvent);
-            window[appid]({
-                canvas: function () { return $("canvas"); },
-                eventHandler: eventHandler,
-                location: function () { return location; },
-                menu: function () { return menu; },
-                mouse: function () { return mouse; },
-                runOnNextFrame: runOnAnimationFrame,
-                runOnNextIdle: runOnIdle,
-                runOnCanvasResize: resizeEvent.add,
-                runOnLocationChange: location.onchange.add,
-                showMessage: showMessage
-            });
-        });
+        setTimeout(check, 50);
     }
 
     eventHandler(startLoad)();
