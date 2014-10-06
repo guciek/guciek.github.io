@@ -124,5 +124,3 @@ function teflyjs(env) {
 
     init();
 }
-
-teflyjs(1);
