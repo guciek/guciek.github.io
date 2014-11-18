@@ -393,15 +393,16 @@ function loadApp(appid) {
     function addRightMenu(manager) {
         manager.addSubmenu("More Apps", true).
             addText("Apps:").
-            addLink("Canvas Magic Eye",     "canvasmeye.html").
-            addLink("JSSpect",              "jsspect.html").
-            addLink("Web Mandelbrot",       "web_mandelbrot.html").
+            addLink("Canvas Magic Eye",       "canvasmeye.html").
+            addLink("Jijitai Fractal Viewer", "jijitai.html").
+            addLink("JSSpect",                "jsspect.html").
+            addLink("Web Mandelbrot",         "web_mandelbrot.html").
             addLine().
             addText("Demos:").
-            addLink("3D Terrain",           "teflyjs.html").
-            addLink("Ball Bowl",            "js2dsim.html").
-            addLink("Burn Canvas",          "burn_canvas.html").
-            addLink("Main Page",            "/").
+            addLink("3D Terrain",             "teflyjs.html").
+            addLink("Ball Bowl",              "js2dsim.html").
+            addLink("Burn Canvas",            "burn_canvas.html").
+            addLink("Main Page",              "/").
             addLine().
             addText('Contact: k.gucciek@gmail.com with a single "c" instead of "cc".').
             addLink("View Source (Github)", "https://github.com/guciek/guciek.github.io/tree/master/apps");
