@@ -8,12 +8,14 @@ function jijitai(env) {
 
     function matrix(h, w) {
         var m, v = [];
+
         (function () {
             var i;
             for (i = 0; i < w * h; i += 1) {
                 v.push(0);
             }
         }());
+
         m = {
             cell: function (y, x) {
                 return v[y * w + x];
@@ -75,12 +77,14 @@ function jijitai(env) {
             cur_program,
             canvas_w = 0,
             canvas_h = 0;
+
         try {
             gl = canvas.getContext("webgl");
             if (!gl) { throw "x"; }
         } catch (err) {
             throw "Your web browser does not support WebGL!";
         }
+
         function update_viewport() {
             if ((canvas.width !== canvas_w) || (canvas.height !== canvas_h)) {
                 canvas_w = canvas.width;
@@ -88,6 +92,7 @@ function jijitai(env) {
                 gl.viewport(0, 0, canvas_w, canvas_h);
             }
         }
+
         function new_program(vs, fs) {
             var prog = gl.createProgram(),
                 attributes = {},
@@ -111,7 +116,7 @@ function jijitai(env) {
                 gl.enableVertexAttribArray(attr);
                 return {
                     set_buffer: function (bufob) {
-                        bufob.bind_ab();
+                        bufob.webgl_bind();
                         gl.vertexAttribPointer(attr, vsize, gl.FLOAT,
                                 false, 0, 0);
                         attr_length = Math.floor(bufob.length() / vsize);
@@ -156,6 +161,8 @@ function jijitai(env) {
                 if (cur_program !== prog) {
                     cur_program = prog;
                     gl.useProgram(prog);
+                    gl.enable(gl.BLEND);
+                    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
                 }
             }
             addshader(gl.VERTEX_SHADER, vs);
@@ -198,24 +205,52 @@ function jijitai(env) {
                 }
             };
         }
+
         function new_buffer_float32(arr) {
             arr = new Float32Array(arr);
             if (arr.length < 1) { throw "Invalid buffer data!"; }
-            var buf = gl.createBuffer();
+            var ret, buf = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, buf);
             gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
-            return {
+            ret = {
                 length: function () {
                     return arr.length;
                 },
-                bind_ab: function () {
+                webgl_bind: function () {
                     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+                    return ret;
                 }
             };
+            return ret;
         }
+
+        function new_texture() {
+            var ret, t = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, t);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            ret = {
+                set_image: function (i) {
+                    gl.bindTexture(gl.TEXTURE_2D, t);
+                    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
+                            gl.UNSIGNED_BYTE, i);
+                    return ret;
+                },
+                webgl_bind: function () {
+                    gl.bindTexture(gl.TEXTURE_2D, t);
+                    return ret;
+                }
+            };
+            return ret;
+        }
+
         return {
             new_program: new_program,
             new_buffer_float32: new_buffer_float32,
+            new_texture: new_texture,
             clear : function () {
                 update_viewport();
                 gl.clearColor(0, 0, 0, 1);
@@ -224,18 +259,24 @@ function jijitai(env) {
         };
     }
 
-    function view() {
+    function renderer() {
         var w = webgl(env.canvas()),
             prog = w.new_program(
-                "attribute vec3 v;" +
+                "precision mediump float;" +
+                    "attribute vec3 v;" +
                     "uniform mat4 rot;" +
                     "uniform vec3 param;" +
+                    "varying vec2 st;" +
                     "void main() {" +
                     "    vec4 p = rot * vec4(v, 1.0);" +
+                    "    st = vec2(v.x + 5.0, v.z + 5.0) / 10.0;" +
                     "    gl_Position = vec4(p.x * param.x, p.y, p.z, p.z);" +
                     "}",
-                "void main() {" +
-                    "    gl_FragColor = vec4(0.5, 0.5, 1.0, 1.0);" +
+                "precision mediump float;" +
+                    "varying vec2 st;" +
+                    "uniform sampler2D sampl;" +
+                    "void main() {" +
+                    "    gl_FragColor = texture2D(sampl, vec2(st.s, st.t));" +
                     "}"
             ),
             buf = (function () {
@@ -256,8 +297,37 @@ function jijitai(env) {
                     }
                 }
                 return w.new_buffer_float32(a);
-            }());
+            }()),
+            c = document.createElement("canvas").getContext("2d"),
+            pat_t = w.new_texture();
+
         prog.attribute_vec3("v").set_buffer(buf);
+
+        c.canvas.width = 512;
+        c.canvas.height = 512;
+        function canv_draw() {
+            var x, y, f, cw = c.canvas.width, ch = c.canvas.height;
+            x = Math.random() * cw;
+            y = Math.random() * ch;
+            f = (Math.sin(3 * y / ch) + 1) * 0.5;
+            c.fillStyle = "rgb(" +
+                Math.floor(Math.random() * 256 * f) + "," +
+                Math.floor(Math.random() * 256) + "," +
+                Math.floor(Math.random() * 256 * (1 - f)) + ")";
+            c.beginPath();
+            c.arc(x, y, 5, 0, 2 * Math.PI, false);
+            c.fill();
+        }
+        canv_draw();
+        pat_t.set_image(c.canvas);
+        setInterval(env.eventHandler(function () {
+            var i;
+            for (i = 0; i < 10; i++) {
+                canv_draw();
+            }
+            pat_t.set_image(c.canvas);
+        }), 100);
+
         return {
             redraw: function (cam) {
                 w.clear();
@@ -275,14 +345,10 @@ function jijitai(env) {
         };
     }
 
-    function init() {
-        var v = view(),
-            drawn = false,
-            mousex = -1,
-            mousey = -1,
+    function view() {
+        var r = renderer(),
             cam_pos = matrix(4, 1),
-            movement = matrix(4, 1),
-            key_pressed = {};
+            cam_rotm = identity(4);
 
         cam_pos.set_cell(1, 0, 1);
 
@@ -295,12 +361,31 @@ function jijitai(env) {
                     set_cell(i2, i2, Math.cos(r));
         }
 
-        function m_move_minus(v) {
+        function m_cam_pos() {
             return identity(4).
-                    set_cell(0, 3, -v.cell(0, 0)).
-                    set_cell(1, 3, -v.cell(1, 0)).
-                    set_cell(2, 3, -v.cell(2, 0));
+                    set_cell(0, 3, -cam_pos.cell(0, 0)).
+                    set_cell(1, 3, -cam_pos.cell(1, 0)).
+                    set_cell(2, 3, -cam_pos.cell(2, 0));
         }
+
+        return {
+            onrotate: function (rx, ry, movement) {
+                cam_rotm = m_rotate(-rx, 0).mult(m_rotate(ry, 1));
+                var inv = m_rotate(-ry, 1).mult(m_rotate(rx, 0));
+                cam_pos = cam_pos.add(inv.mult(movement));
+                r.redraw(cam_rotm.mult(m_cam_pos()));
+            },
+            step: r.step
+        };
+    }
+
+    function init() {
+        var v = view(),
+            prev_mousex = -1,
+            prev_mousey = -1,
+            movement = matrix(4, 1),
+            key_pressed = {},
+            drawn = false;
 
         function onframe() {
             var mx = env.mouse().getX(),
@@ -309,20 +394,16 @@ function jijitai(env) {
                 mx = Math.floor(env.canvas().width * 0.5);
                 my = Math.floor(env.canvas().height * 0.5);
             }
-            if ((mx !== mousex) || (my !== mousey)) {
-                mousex = mx;
-                mousey = my;
-                drawn = false;
-            }
-            if (!drawn) {
+            if ((mx !== prev_mousex) || (my !== prev_mousey) || (!drawn)) {
+                prev_mousex = mx;
+                prev_mousey = my;
                 drawn = true;
-                mx = 3 * (0.5 - (mousey / env.canvas().height));
-                my = 11 * ((mousex / env.canvas().width) - 0.5);
-                cam_pos = cam_pos.add(m_rotate(-my, 1).mult(m_rotate(mx, 0)).
-                        mult(movement));
+                v.onrotate(
+                    3 * (0.5 - (my / env.canvas().height)),
+                    11 * ((mx / env.canvas().width) - 0.5),
+                    movement
+                );
                 movement = matrix(4, 1);
-                v.redraw(m_rotate(-mx, 0).mult(m_rotate(my, 1)).
-                        mult(m_move_minus(cam_pos)));
             }
             env.runOnNextFrame(onframe);
         }
@@ -347,11 +428,13 @@ function jijitai(env) {
                 key_pressed[ev.keyCode] = true;
             }
         });
+
         document.body.onkeyup = env.eventHandler(function (ev) {
             if (ev.keyCode) {
                 key_pressed[ev.keyCode] = undefined;
             }
         });
+
         setInterval(env.eventHandler(function () {
             var speed = 0.05;
             if (key_pressed[87]) {
@@ -370,7 +453,7 @@ function jijitai(env) {
                 movement.set_cell(0, 0, movement.cell(0, 0) + speed);
                 drawn = false;
             }
-        }), 30);
+        }), 25);
 
         env.menu().addSubmenu("Fractal").
             addLink("Mandelbulb", "#mandelbulb").
