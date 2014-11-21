@@ -123,6 +123,17 @@ function jijitai(env) {
                     }
                 };
             }
+            function uniform_init_float(n) {
+                var attr = gl.getUniformLocation(prog, n);
+                if (attr < 0) {
+                    throw "Could not load uniform variable location!";
+                }
+                return {
+                    set_value : function (val) {
+                        gl.uniform1f(attr, val);
+                    }
+                };
+            }
             function uniform_init_vec3(n) {
                 var attr = gl.getUniformLocation(prog, n);
                 if (attr < 0) {
@@ -172,12 +183,22 @@ function jijitai(env) {
                 throw "Could not link the shader program!";
             }
             return {
-                draw_triangles : function () {
+                draw_triangles : function (begin, end) {
                     if (attr_length < 1) {
                         throw "Buffer length unknown!";
                     }
                     activate();
-                    gl.drawArrays(gl.TRIANGLES, 0, attr_length);
+                    var start = begin || 0;
+                    gl.drawArrays(gl.TRIANGLES, start,
+                            end || attr_length - start);
+                },
+                attribute_vec2: function (n) {
+                    if (attributes[n]) {
+                        return attributes[n];
+                    }
+                    activate();
+                    attributes[n] = attribute_init_vec(n, 2);
+                    return attributes[n];
                 },
                 attribute_vec3: function (n) {
                     if (attributes[n]) {
@@ -186,6 +207,14 @@ function jijitai(env) {
                     activate();
                     attributes[n] = attribute_init_vec(n, 3);
                     return attributes[n];
+                },
+                uniform_float: function (n) {
+                    if (uniforms[n]) {
+                        return uniforms[n];
+                    }
+                    activate();
+                    uniforms[n] = uniform_init_float(n);
+                    return uniforms[n];
                 },
                 uniform_vec3: function (n) {
                     if (uniforms[n]) {
@@ -259,18 +288,59 @@ function jijitai(env) {
         };
     }
 
+    function icosahedron() {
+        var t = (1 + Math.sqrt(5)) / 2,
+            v = [
+                [-1, t, 0],
+                [1, t, 0],
+                [-1, -t, 0],
+                [1, -t, 0],
+                [0, -1, t],
+                [0, 1, t],
+                [0, -1, -t],
+                [0, 1, -t],
+                [t, 0, -1],
+                [t, 0, 1],
+                [-t, 0, -1],
+                [-t, 0, 1]
+            ];
+        return [
+            v[0], v[11], v[5],
+            v[0], v[5], v[1],
+            v[0], v[1], v[7],
+            v[0], v[7], v[10],
+            v[0], v[10], v[11],
+            v[1], v[5], v[9],
+            v[5], v[11], v[4],
+            v[11], v[10], v[2],
+            v[10], v[7], v[6],
+            v[7], v[1], v[8],
+            v[3], v[9], v[4],
+            v[3], v[4], v[2],
+            v[3], v[2], v[6],
+            v[3], v[6], v[8],
+            v[3], v[8], v[9],
+            v[4], v[9], v[5],
+            v[2], v[4], v[11],
+            v[6], v[2], v[10],
+            v[8], v[6], v[7],
+            v[9], v[8], v[1]
+        ];
+    }
+
     function renderer() {
         var w = webgl(env.canvas()),
             prog = w.new_program(
                 "precision mediump float;" +
-                    "attribute vec3 v;" +
+                    "attribute vec3 xyz;" +
+                    "attribute vec2 uv;" +
                     "uniform mat4 rot;" +
-                    "uniform vec3 param;" +
+                    "uniform float ratio;" +
                     "varying vec2 st;" +
                     "void main() {" +
-                    "    vec4 p = rot * vec4(v, 1.0);" +
-                    "    st = vec2(v.x + 5.0, v.z + 5.0) / 10.0;" +
-                    "    gl_Position = vec4(p.x * param.x, p.y, p.z, p.z);" +
+                    "    vec4 p = rot * vec4(xyz, 1.0);" +
+                    "    st = uv;" +
+                    "    gl_Position = vec4(p.x * ratio, p.y, p.z, p.z);" +
                     "}",
                 "precision mediump float;" +
                     "varying vec2 st;" +
@@ -279,68 +349,116 @@ function jijitai(env) {
                     "    gl_FragColor = texture2D(sampl, vec2(st.s, st.t));" +
                     "}"
             ),
-            buf = (function () {
-                var x,
-                    z,
-                    a = [];
-                for (x = -5; x < 5; x += 1) {
-                    for (z = -5; z < 5; z += 1) {
-                        a.push(x);
-                        a.push(0);
-                        a.push(z);
-                        a.push(x + 1);
-                        a.push(0);
-                        a.push(z);
-                        a.push(x);
-                        a.push(0);
-                        a.push(z + 1);
-                    }
+            mesh = icosahedron(),
+            buf_xyz = (function () {
+                var i, a = [];
+                for (i = 0; i < mesh.length; i += 1) {
+                    a.push(mesh[i][0] * 3);
+                    a.push(mesh[i][1] * 3);
+                    a.push(mesh[i][2] * 3);
                 }
                 return w.new_buffer_float32(a);
             }()),
-            c = document.createElement("canvas").getContext("2d"),
-            pat_t = w.new_texture();
+            buf_uv = (function () {
+                var i, a = [];
+                for (i = 0; i < mesh.length; i += 3) {
+                    a.push(0.5);
+                    a.push(0);
+                    a.push(0);
+                    a.push(1);
+                    a.push(1);
+                    a.push(1);
+                }
+                return w.new_buffer_float32(a);
+            }()),
+            spheres = [];
 
-        prog.attribute_vec3("v").set_buffer(buf);
-
-        c.canvas.width = 512;
-        c.canvas.height = 512;
-        function canv_draw() {
-            var x, y, f, cw = c.canvas.width, ch = c.canvas.height;
-            x = Math.random() * cw;
-            y = Math.random() * ch;
-            f = (Math.sin(3 * y / ch) + 1) * 0.5;
-            c.fillStyle = "rgb(" +
-                Math.floor(Math.random() * 256 * f) + "," +
-                Math.floor(Math.random() * 256) + "," +
-                Math.floor(Math.random() * 256 * (1 - f)) + ")";
-            c.beginPath();
-            c.arc(x, y, 5, 0, 2 * Math.PI, false);
-            c.fill();
+        function init_triangle(nr) {
+            var c = document.createElement("canvas").getContext("2d"),
+                t = w.new_texture(),
+                updated = false,
+                empty = true,
+                steps = 0;
+            c.canvas.width = 256;
+            c.canvas.height = 256;
+            return {
+                draw: function () {
+                    if (empty) {
+                        return;
+                    }
+                    if (updated) {
+                        t.set_image(c.canvas);
+                    }
+                    t.webgl_bind();
+                    prog.draw_triangles(nr * 3, 3);
+                },
+                step: function () {
+                    if (steps >= 1000) { return false; }
+                    var x, y, f, cw = c.canvas.width, ch = c.canvas.height;
+                    x = Math.random() * cw;
+                    y = Math.random() * ch;
+                    f = (Math.sin(3 * y / ch) + 1) * 0.5;
+                    c.fillStyle = "rgb(" +
+                        Math.floor(Math.random() * 256 * f) + "," +
+                        (nr * 10) + "," +
+                        Math.floor(Math.random() * 256 * (1 - f)) + ")";
+                    c.beginPath();
+                    c.arc(x, y, 5, 0, 2 * Math.PI, false);
+                    c.fill();
+                    c.fillStyle = "rgba(255,255,255,0.5)";
+                    c.textAlign = "center";
+                    c.font = "bold 20px Sans-Serif";
+                    c.fillText("f/" + nr, c.canvas.width/2, 0.4*c.canvas.height);
+                    empty = false;
+                    updated = true;
+                    steps += 1;
+                    return true;
+                }
+            };
         }
-        canv_draw();
-        pat_t.set_image(c.canvas);
-        setInterval(env.eventHandler(function () {
-            var i;
-            for (i = 0; i < 10; i++) {
-                canv_draw();
-            }
-            pat_t.set_image(c.canvas);
-        }), 100);
+
+        function init_sphere() {
+            var triangles = [],
+                step_i = 0;
+            (function () {
+                var i;
+                for (i = 0; i < 20; i += 1) {
+                    triangles[i] = init_triangle(i);
+                }
+            }());
+            return {
+                draw: function () {
+                    var i;
+                    for (i = 0; i < 20; i += 1) {
+                        triangles[i].draw();
+                    }
+                },
+                step: function () {
+                    if (triangles[step_i].step()) {
+                        return true;
+                    }
+                    step_i = (step_i + 1) % 20;
+                    return false;
+                }
+            };
+        }
+
+        spheres[0] = init_sphere();
+
+        prog.attribute_vec3("xyz").set_buffer(buf_xyz);
+        prog.attribute_vec2("uv").set_buffer(buf_uv);
 
         return {
             redraw: function (cam) {
                 w.clear();
                 prog.uniform_mat4("rot").set_matrix(cam);
-                prog.uniform_vec3("param").set_xyz(
-                    env.canvas().height / env.canvas().width,
-                    0,
-                    0
+                prog.uniform_float("ratio").set_value(
+                    env.canvas().height / env.canvas().width
                 );
-                prog.draw_triangles();
+                spheres[0].draw();
             },
             step: function () {
-                return false;
+                return spheres[0].step();
             }
         };
     }
@@ -348,9 +466,8 @@ function jijitai(env) {
     function view() {
         var r = renderer(),
             cam_pos = matrix(4, 1),
-            cam_rotm = identity(4);
-
-        cam_pos.set_cell(1, 0, 1);
+            cam_rotm = identity(4),
+            last_redraw = 0;
 
         function m_rotate(r, i) {
             var i1 = (i + 1) % 3, i2 = (i + 2) % 3;
@@ -374,8 +491,17 @@ function jijitai(env) {
                 var inv = m_rotate(-ry, 1).mult(m_rotate(rx, 0));
                 cam_pos = cam_pos.add(inv.mult(movement));
                 r.redraw(cam_rotm.mult(m_cam_pos()));
+                last_redraw = new Date().getTime();
             },
-            step: r.step
+            step: function () {
+                if (!r.step()) { return false; }
+                var t = new Date().getTime();
+                if (t - last_redraw > 200) {
+                    r.redraw(cam_rotm.mult(m_cam_pos()));
+                    last_redraw = t;
+                }
+                return true;
+            }
         };
     }
 
@@ -385,11 +511,35 @@ function jijitai(env) {
             prev_mousey = -1,
             movement = matrix(4, 1),
             key_pressed = {},
-            drawn = false;
+            drawn = false,
+            last_time = new Date().getTime();
+
+        function move(t) {
+            var speed = 2;
+            if (key_pressed[87]) {
+                movement.set_cell(2, 0, movement.cell(2, 0) + speed * t);
+                drawn = false;
+            }
+            if (key_pressed[83]) {
+                movement.set_cell(2, 0, movement.cell(2, 0) - speed * t);
+                drawn = false;
+            }
+            if (key_pressed[65]) {
+                movement.set_cell(0, 0, movement.cell(0, 0) - speed * t);
+                drawn = false;
+            }
+            if (key_pressed[68]) {
+                movement.set_cell(0, 0, movement.cell(0, 0) + speed * t);
+                drawn = false;
+            }
+        }
 
         function onframe() {
             var mx = env.mouse().getX(),
-                my = env.mouse().getY();
+                my = env.mouse().getY(),
+                t = new Date().getTime();
+            move((t - last_time) / 1000);
+            last_time = t;
             if ((mx < 0) && (my < 0)) {
                 mx = Math.floor(env.canvas().width * 0.5);
                 my = Math.floor(env.canvas().height * 0.5);
@@ -434,26 +584,6 @@ function jijitai(env) {
                 key_pressed[ev.keyCode] = undefined;
             }
         });
-
-        setInterval(env.eventHandler(function () {
-            var speed = 0.05;
-            if (key_pressed[87]) {
-                movement.set_cell(2, 0, movement.cell(2, 0) + speed);
-                drawn = false;
-            }
-            if (key_pressed[83]) {
-                movement.set_cell(2, 0, movement.cell(2, 0) - speed);
-                drawn = false;
-            }
-            if (key_pressed[65]) {
-                movement.set_cell(0, 0, movement.cell(0, 0) - speed);
-                drawn = false;
-            }
-            if (key_pressed[68]) {
-                movement.set_cell(0, 0, movement.cell(0, 0) + speed);
-                drawn = false;
-            }
-        }), 25);
 
         env.menu().addSubmenu("Fractal").
             addLink("Mandelbulb", "#mandelbulb").
