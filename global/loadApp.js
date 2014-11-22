@@ -358,19 +358,27 @@ function loadApp(appid) {
     }
 
     function initRunOnIdle() {
-        var todo;
+        var todo,
+            last_clear_queue = new Date().getTime();
 
         function run(fn) {
-            var done = false,
-                process = eventHandler(function () {
-                    if (!done) {
-                        done = true;
-                        fn();
-                    }
-                });
-            todo = process;
-            setTimeout(process, 50);
-            window.postMessage("todo_idle", "*");
+            var done = false;
+            todo = eventHandler(function (clear) {
+                if (!done) {
+                    done = true;
+                    fn();
+                }
+            });
+            setTimeout(eventHandler(function () {
+                if (!done) {
+                    done = true;
+                    last_clear_queue = new Date().getTime();
+                    fn();
+                }
+            }), 1);
+            if (new Date().getTime() - last_clear_queue < 100) {
+                window.postMessage("todo_idle", "*");
+            }
         }
 
         window.addEventListener(
