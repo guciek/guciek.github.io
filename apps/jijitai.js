@@ -256,8 +256,8 @@ function jijitai(env) {
         function new_texture() {
             var ret, t = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, t);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             ret = {
@@ -280,9 +280,9 @@ function jijitai(env) {
             new_program: new_program,
             new_buffer_float32: new_buffer_float32,
             new_texture: new_texture,
-            clear : function () {
+            clear : function (r, g, b) {
                 update_viewport();
-                gl.clearColor(0, 0, 0, 1);
+                gl.clearColor(r || 0, g || 0, b || 0, 1);
                 gl.clear(gl.COLOR_BUFFER_BIT);
             }
         };
@@ -328,6 +328,44 @@ function jijitai(env) {
         ];
     }
 
+    function mandelbulb(x, y, z) {
+        x *= 0.5;
+        y *= 0.5;
+        z *= 0.5;
+        var i, r, phi, theta, sinth, cx = x, cy = y, cz = z;
+        for (i = 0; i < 50; i += 1) {
+            r = Math.sqrt(x * x + y * y + z * z);
+            if (r > 2) { return false; }
+            phi = 8 * Math.atan2(y, x);
+            theta = 8 * Math.acos(z / r);
+            sinth = Math.sin(theta);
+            r = r * r;
+            r = r * r;
+            r = r * r;
+            x = r * sinth * Math.cos(phi) + cx;
+            y = r * sinth * Math.sin(phi) + cy;
+            z = r * Math.cos(theta) + cz;
+        }
+        return true;
+    }
+
+    function render_ray(cx, cy, cz, sx, sy, sz, max) {
+        var i = 1, x, y, z;
+        while (i < max) {
+            x = cx + i * sx;
+            y = cy + i * sy;
+            z = cz + i * sz;
+            if (mandelbulb(x, y, z)) {
+                if (i === 1) {
+                    return 0;
+                }
+                return [i / max, (i - 1) / (max - 1), (i - 1) / (max - 1)];
+            }
+            i *= 1.05;
+        }
+        return false;
+    }
+
     function renderer() {
         var w = webgl(env.canvas()),
             prog = w.new_program(
@@ -339,7 +377,7 @@ function jijitai(env) {
                     "uniform float ratio;" +
                     "varying vec2 st;" +
                     "void main() {" +
-                    "    vec4 p = rot * vec4(xyz * sphere.w, 1.0);" +
+                    "    vec4 p = rot * vec4(xyz*sphere.w+sphere.xyz, 1.0);" +
                     "    st = uv;" +
                     "    gl_Position = vec4(p.x * ratio, p.y, p.z, p.z);" +
                     "}",
@@ -373,7 +411,21 @@ function jijitai(env) {
                 return w.new_buffer_float32(a);
             }()),
             spheres = [],
+            active_spheres = 1,
             last_ratio = 1;
+
+        function interpolate(p1, p2, part) {
+            return [p1[0] * (1 - part) + p2[0] * part,
+                    p1[1] * (1 - part) + p2[1] * part,
+                    p1[2] * (1 - part) + p2[2] * part];
+        }
+
+        function dist(p1, p2) {
+            var x = p1[0] - p2[0],
+                y = p1[1] - p2[1],
+                z = p1[2] - p2[2];
+            return Math.sqrt(x * x + y * y + z * z);
+        }
 
         function point_visible(x, y, z, cam) {
             var v = matrix(4, 1).
@@ -390,37 +442,96 @@ function jijitai(env) {
             return true;
         }
 
-        function init_triangle(nr) {
+        function activate_sphere(n) {
+            var r;
+            while ((n >= spheres.length) && (spheres.length < 20)) {
+                r = spheres[spheres.length - 1].radius();
+                spheres.push(init_sphere(
+                    spheres.length,
+                    r * 0.5,
+                    r
+                ));
+            }
+            if ((n >= active_spheres) && (active_spheres < spheres.length)) {
+                spheres[active_spheres].reset();
+                active_spheres += 1;
+            }
+        }
+
+        function init_triangle(n, nr, r1, r2, tex_size) {
             var c = document.createElement("canvas").getContext("2d"),
                 t = w.new_texture(),
                 updated = false,
                 empty = true,
-                steps = 0;
-            c.canvas.width = 256;
-            c.canvas.height = 256;
+                next_y = tex_size,
+                next_x = 0,
+                center = [0, 0, 0];
+            c.canvas.width = tex_size;
+            c.canvas.height = tex_size;
             function step() {
-                var i, x, y, f, cw = c.canvas.width, ch = c.canvas.height;
-                x = Math.random() * cw;
-                y = Math.random() * ch;
-                f = (Math.sin(3 * y / ch) + 1) * 0.5;
-                c.fillStyle = "rgb(" +
-                    Math.floor(Math.random() * 256 * f) + "," +
-                    (nr * 10) + "," +
-                    Math.floor(Math.random() * 256 * (1 - f)) + ")";
-                for (i = 0; i < 1000; i++) {
-                    c.beginPath();
-                    c.arc(x, y, 5, 0, 2 * Math.PI, false);
-                    c.fill();
+                if (next_x < next_y * 0.5 - 1) {
+                    return false;
                 }
-                empty = false;
-                updated = true;
-                steps += 1;
+                if (next_x > tex_size - next_y * 0.5 + 1) {
+                    return false;
+                }
+                var ray, ww = tex_size - next_y - 1;
+                if (ww < 1) {
+                    ww = 1;
+                }
+                ray = interpolate(
+                    interpolate(
+                        mesh[nr * 3 + 1],
+                        mesh[nr * 3 + 2],
+                        (next_x - next_y * 0.5) / ww
+                    ),
+                    mesh[nr * 3],
+                    next_y / tex_size
+                );
+                ray = render_ray(center[0], center[1], center[2],
+                    ray[0] * r1, ray[1] * r1, ray[2] * r1, r2 / r1);
+                if (ray || (ray === 0)) {
+                    if (ray === 0) {
+                        c.fillStyle = "rgb(0,0,0)";
+                        activate_sphere(n + 1);
+                    } else {
+                        if (ray[0] < 0) { ray[0] = 0; }
+                        if (ray[0] > 1) { ray[0] = 1; }
+                        if (ray[1] < 0) { ray[1] = 0; }
+                        if (ray[1] > 1) { ray[1] = 1; }
+                        if (ray[2] < 0) { ray[2] = 0; }
+                        if (ray[2] > 1) { ray[2] = 1; }
+                        c.fillStyle = "rgb(" + Math.floor(255 * ray[0]) + "," +
+                                Math.floor(255 * ray[1]) + "," +
+                                Math.floor(255 * ray[2]) + ")";
+                    }
+                    c.fillRect(next_x, next_y, 1, 1);
+                    updated = true;
+                    empty = false;
+                }
+                return true;
+            }
+            function steps() {
+                var k = 0;
+                while (k < 10) {
+                    if (next_y >= tex_size) {
+                        return;
+                    }
+                    if (step()) { k += 1; }
+                    next_x += 1;
+                    if (next_x >= tex_size) {
+                        next_x = 0;
+                        next_y += 1;
+                    }
+                }
             }
             function visible_vertices(cam) {
                 var i, p, ret = 0;
                 for (i = 0; i < 3; i += 1) {
                     p = mesh[nr * 3 + i];
-                    if (point_visible(p[0], p[1], p[2], cam)) {
+                    if (point_visible(center[0] + p[0] * r1,
+                            center[1] + p[1] * r1,
+                            center[2] + p[2] * r1, cam)) {
                         ret += 1;
                     }
                 }
@@ -438,50 +549,74 @@ function jijitai(env) {
                     prog.draw_triangles(nr * 3, 3);
                 },
                 register_steps: function (register, cam) {
-                    if (steps < 100) {
-                        register(
-                            visible_vertices(cam) * 1000 +
-                                (100 - steps)/ 100,
-                            step
-                        );
+                    var v = visible_vertices(cam);
+                    if (v > 0) {
+                        v = 1000 + v * 0.1;
                     }
+                    if (next_y < tex_size) {
+                        register(v, steps);
+                    }
+                },
+                set_center: function (x, y, z) {
+                    center = [x, y, z];
+                    empty = true;
+                    updated = true;
+                    next_x = 0;
+                    next_y = 0;
+                    c.clearRect(0, 0, tex_size, tex_size);
                 }
             };
         }
 
-        function init_sphere(radius) {
-            var triangles = [];
+        function init_sphere(n, r1, r2) {
+            var triangles = [], cx = 1000, cy = 0, cz = 0;
             (function () {
                 var i;
                 for (i = 0; i < 20; i += 1) {
-                    triangles[i] = init_triangle(i);
+                    triangles[i] = init_triangle(n, i, r1, r2, 256);
                 }
             }());
             return {
-                draw: function (cam) {
-                    prog.uniform_vec4("sphere").set_values(0, 0, 0, radius);
+                draw: function () {
+                    if (cx > 100) { return; }
+                    prog.uniform_vec4("sphere").set_values(cx, cy, cz, r1);
                     var i;
                     for (i = 0; i < 20; i += 1) {
                         triangles[i].draw();
                     }
                 },
                 register_steps: function (register, cam) {
+                    if (cx > 100) { return; }
                     var i;
-                    for (i = 0; i < 20; i += 1) {
-                        triangles[i].register_steps(
-                            function (p, c) {
-                                register(p - radius, c);
-                            },
-                            cam
-                        );
+                    function register_r(p, c) {
+                        register(p + n, c);
                     }
+                    for (i = 0; i < 20; i += 1) {
+                        triangles[i].register_steps(register_r, cam);
+                    }
+                },
+                set_center: function (x, y, z) {
+                    var i;
+                    cx = x;
+                    cy = y;
+                    cz = z;
+                    for (i = 0; i < 20; i += 1) {
+                        triangles[i].set_center(x, y, z);
+                    }
+                },
+                radius: function () {
+                    return r1;
+                },
+                center: function () {
+                    return [cx, cy, cz];
+                },
+                reset: function () {
+                    cx = 1000;
                 }
             };
         }
 
-        spheres[0] = init_sphere(4);
-        spheres[1] = init_sphere(2);
-        spheres[2] = init_sphere(1);
+        spheres[0] = init_sphere(0, 2, 4);
 
         prog.attribute_vec3("xyz").set_buffer(buf_xyz);
         prog.attribute_vec2("uv").set_buffer(buf_uv);
@@ -489,30 +624,38 @@ function jijitai(env) {
         return {
             redraw: function (cam) {
                 var i;
-                w.clear();
+                w.clear(0.4, 0.5, 1.0);
                 prog.uniform_mat4("rot").set_matrix(cam);
                 last_ratio = env.canvas().height / env.canvas().width;
                 prog.uniform_float("ratio").set_value(last_ratio);
-                for (i = 0; i < spheres.length; i++) {
-                    spheres[i].draw(cam);
+                for (i = 0; i < active_spheres; i += 1) {
+                    spheres[i].draw();
                 }
             },
-            step: function (cam) {
-                var i, highest = -1000, highest_compute;
+            step: function (pos, rot) {
+                var d, i, highest = -1000, highest_compute;
                 function register(priority, compute) {
                     if (priority > highest) {
                         highest = priority;
                         highest_compute = compute;
                     }
                 }
-                for (i = 0; i < spheres.length; i++) {
-                    spheres[i].register_steps(register, cam);
+                for (i = 0; i < active_spheres; i += 1) {
+                    d = dist(pos, spheres[i].center());
+                    if (d > spheres[i].radius() * 0.5) {
+                        spheres[i].set_center(pos[0], pos[1], pos[2]);
+                        active_spheres = i + 1;
+                    }
+                    spheres[i].register_steps(register, rot);
                 }
                 if (highest_compute) {
                     highest_compute();
                     return true;
                 }
                 return false;
+            },
+            scale: function () {
+                return spheres[active_spheres - 1].radius();
             }
         };
     }
@@ -522,6 +665,8 @@ function jijitai(env) {
             cam_pos = matrix(4, 1),
             cam_rotm = identity(4),
             last_redraw = 0;
+
+        cam_pos.set_cell(2, 0, -3);
 
         function m_rotate(r, i) {
             var i1 = (i + 1) % 3, i2 = (i + 2) % 3;
@@ -548,14 +693,18 @@ function jijitai(env) {
                 last_redraw = new Date().getTime();
             },
             step: function () {
-                if (!r.step(cam_rotm)) { return false; }
+                if (!r.step([cam_pos.cell(0, 0), cam_pos.cell(1, 0),
+                        cam_pos.cell(2, 0)], cam_rotm)) {
+                    return false;
+                }
                 var t = new Date().getTime();
                 if (t - last_redraw > 200) {
                     r.redraw(cam_rotm.mult(m_cam_pos()));
                     last_redraw = t;
                 }
                 return true;
-            }
+            },
+            scale: r.scale
         };
     }
 
@@ -569,7 +718,7 @@ function jijitai(env) {
             last_time = new Date().getTime();
 
         function move(t) {
-            var speed = 2;
+            var speed = 0.6 * v.scale();
             if (key_pressed[87]) {
                 movement.set_cell(2, 0, movement.cell(2, 0) + speed * t);
                 drawn = false;
