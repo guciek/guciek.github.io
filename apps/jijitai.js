@@ -558,221 +558,214 @@ function jijitai(env) {
         };
     }
 
+    function triangle_texture_updater(nr, center, r1, r2, tex_size,
+            triangle_texture_pos) {
+        var c = document.createElement("canvas").getContext("2d"),
+            opaque = true,
+            empty = true,
+            intersection = false,
+            next_y = 0,
+            next_x = 0;
+        c.canvas.width = tex_size;
+        c.canvas.height = tex_size;
+        c.fillStyle = "rgb(0,0,0)";
+        c.fillRect(0, 0, tex_size, tex_size);
+        function step() {
+            if (next_x < next_y * 0.5 - 1) {
+                return false;
+            }
+            if (next_x > tex_size - next_y * 0.5 + 1) {
+                return false;
+            }
+            var ray = triangle_texture_pos(nr, next_x / tex_size,
+                    next_y / tex_size);
+            ray = render_ray(
+                center.cell(0, 0),
+                center.cell(1, 0),
+                center.cell(2, 0),
+                ray.cell(0, 0) * r1,
+                ray.cell(1, 0) * r1,
+                ray.cell(2, 0) * r1,
+                r2 / r1,
+                function () { intersection = true; }
+            );
+            if (ray) {
+                if (ray[0] < 0) { ray[0] = 0; }
+                if (ray[0] > 1) { ray[0] = 1; }
+                if (ray[1] < 0) { ray[1] = 0; }
+                if (ray[1] > 1) { ray[1] = 1; }
+                if (ray[2] < 0) { ray[2] = 0; }
+                if (ray[2] > 1) { ray[2] = 1; }
+                c.fillStyle = "rgb(" + Math.floor(255 * ray[0]) + "," +
+                        Math.floor(255 * ray[1]) + "," +
+                        Math.floor(255 * ray[2]) + ")";
+                c.fillRect(next_x, next_y, 1, 1);
+                empty = false;
+            } else {
+                opaque = false;
+            }
+            return true;
+        }
+        function steps() {
+            var k = 0;
+            while (k < 100) {
+                if (next_y >= tex_size) {
+                    return false;
+                }
+                if (step()) { k += 1; }
+                next_x += 1;
+                if (next_x >= tex_size) {
+                    next_x = 0;
+                    next_y += 1;
+                }
+            }
+            return true;
+        }
+        return {
+            step: steps,
+            update_texture: function (texture) {
+                if (next_y < tex_size) {
+                    throw "Incomplete texture!";
+                }
+                texture.set_image(c.canvas);
+            },
+            triangle_info: function () {
+                if (next_y < tex_size) {
+                    throw "Incomplete triangle information!";
+                }
+                return {
+                    center: center,
+                    empty: empty,
+                    opaque: opaque,
+                    intersection: intersection,
+                    radius: r1,
+                    radius_outer: r2,
+                    nr: nr,
+                    texture_size: tex_size
+                };
+            }
+        };
+    }
+
     function renderer() {
         var r = triangle_renderer(),
-            spheres = [],
-            active_spheres = 1;
-        function init_triangle(nr, r1, r2, tex_size) {
-            var c = document.createElement("canvas").getContext("2d"),
-                texture,
-                updated = false,
-                empty = true,
-                intersection = false,
-                next_y = tex_size,
-                next_x = 0,
-                center = matrix.vector([0, 0, 0]);
-            c.canvas.width = tex_size;
-            c.canvas.height = tex_size;
-            c.fillStyle = "rgb(0,0,0)";
-            c.fillRect(0, 0, tex_size, tex_size);
-            function step() {
-                if (next_x < next_y * 0.5 - 1) {
-                    return false;
-                }
-                if (next_x > tex_size - next_y * 0.5 + 1) {
-                    return false;
-                }
-                var ray = r.triangle_texture_pos(nr, next_x / tex_size,
-                        next_y / tex_size);
-                ray = render_ray(
-                    center.cell(0, 0),
-                    center.cell(1, 0),
-                    center.cell(2, 0),
-                    ray.cell(0, 0) * r1,
-                    ray.cell(1, 0) * r1,
-                    ray.cell(2, 0) * r1,
-                    r2 / r1,
-                    function () { intersection = true; }
-                );
-                if (ray) {
-                    if (ray[0] < 0) { ray[0] = 0; }
-                    if (ray[0] > 1) { ray[0] = 1; }
-                    if (ray[1] < 0) { ray[1] = 0; }
-                    if (ray[1] > 1) { ray[1] = 1; }
-                    if (ray[2] < 0) { ray[2] = 0; }
-                    if (ray[2] > 1) { ray[2] = 1; }
-                    c.fillStyle = "rgb(" + Math.floor(255 * ray[0]) + "," +
-                            Math.floor(255 * ray[1]) + "," +
-                            Math.floor(255 * ray[2]) + ")";
-                    c.fillRect(next_x, next_y, 1, 1);
-                    updated = true;
-                    empty = false;
-                }
+            updater,
+            updater_index = -1,
+            triangles = [],
+            textures = [];
+
+        function add_sphere(r1, r2) {
+            var i;
+            for (i = 0; i < 20; i += 1) {
+                triangles.push({
+                    center: matrix.vector([1000, 0, 0]),
+                    nr: i,
+                    empty: true,
+                    radius: r1,
+                    radius_outer: r2
+                });
+            }
+        }
+
+        add_sphere(0.5, 3.1);
+
+        function start_updater(index, pos) {
+            updater_index = index;
+            updater = triangle_texture_updater(
+                triangles[index].nr,
+                pos,
+                triangles[index].radius,
+                triangles[index].radius_outer,
+                256,
+                r.triangle_texture_pos
+            );
+        }
+
+        function updater_step() {
+            if (updater.step()) {
                 return true;
             }
-            function steps() {
-                var k = 0;
-                while (k < 100) {
-                    if (next_y >= tex_size) {
-                        return;
+            triangles[updater_index] = updater.triangle_info();
+            if (!triangles[updater_index].empty) {
+                if (!textures[updater_index]) {
+                    textures[updater_index] = r.new_texture();
+                }
+                updater.update_texture(textures[updater_index]);
+            }
+            updater = undefined;
+            return true;
+        }
+
+        function step(pos, rot) {
+            if (updater) {
+                return updater_step();
+            }
+
+            var i, d, max_dist = -1000, max_i = -1, v;
+            for (i = 0; i < triangles.length; i += 1) {
+                v = r.triangle_visible(
+                    triangles[i].nr,
+                    matrix.vector([0, 0, 0]),
+                    rot
+                );
+                d = dist(pos, triangles[i].center) / triangles[i].radius;
+                if (d > 10) { d = 10; }
+                if (d > 0.00001) {
+                    if (v >= 1) {
+                        d += v * 0.1;
+                    } else {
+                        d -= 100;
                     }
-                    if (step()) { k += 1; }
-                    next_x += 1;
-                    if (next_x >= tex_size) {
-                        next_x = 0;
-                        next_y += 1;
+                    if (d > max_dist) {
+                        max_dist = d;
+                        max_i = i;
                     }
                 }
             }
-            return {
-                draw: function (pos, rot) {
-                    if (empty) {
-                        return;
+
+            if ((max_dist <= 0.05) && (triangles.length < 200)) {
+                for (i = triangles.length - 20; i < triangles.length; i += 1) {
+                    if (triangles[i].intersection) {
+                        d = triangles[i].radius;
+                        add_sphere(d * 0.5, d * 1.3);
+                        return true;
                     }
-                    if (updated) {
-                        if (!texture) {
-                            texture = r.new_texture();
-                        }
-                        texture.set_image(c.canvas);
-                    }
-                    if (texture) {
-                        r.triangle_draw(nr, center.sub(pos).mult(1 / r1),
-                                rot, texture);
-                    }
-                },
-                register_steps: function (register, pos, rot) {
-                    if (next_y < tex_size) {
-                        register(
-                            r.triangle_visible(nr,
-                                center.sub(pos).mult(1 / r1),
-                                rot) * 1000,
-                            steps
+                }
+            }
+
+            if (max_i >= 0) {
+                start_updater(max_i, pos);
+                return true;
+            }
+
+            return false;
+        }
+
+        function redraw(pos, rot) {
+            var i, d;
+            r.clear();
+            for (i = 0; i < triangles.length; i += 1) {
+                if (!triangles[i].empty) {
+                    d = dist(pos, triangles[i].center);
+                    if (d < triangles[i].radius * 0.5) {
+                        r.triangle_draw(
+                            triangles[i].nr,
+                            triangles[i].center.sub(pos).mult(
+                                1 / triangles[i].radius
+                            ),
+                            rot,
+                            textures[i]
                         );
                     }
-                },
-                set_center: function (newc) {
-                    center = newc;
-                    empty = true;
-                    updated = true;
-                    intersection = false;
-                    next_x = 0;
-                    next_y = 0;
-                    c.fillStyle = "rgb(0,0,0)";
-                    c.fillRect(0, 0, tex_size, tex_size);
-                },
-                has_intersection: function () {
-                    return intersection;
                 }
-            };
-        }
-
-        function init_sphere(n, r1, r2) {
-            var triangles = [], center;
-            (function () {
-                var i;
-                for (i = 0; i < 20; i += 1) {
-                    triangles[i] = init_triangle(i, r1, r2, 256);
-                }
-            }());
-            return {
-                draw: function (pos, rot) {
-                    if (!center) { return; }
-                    var i;
-                    for (i = 0; i < 20; i += 1) {
-                        triangles[i].draw(pos, rot);
-                    }
-                },
-                register_steps: function (register, pos, rot) {
-                    if (!center) { return; }
-                    var i;
-                    function register_r(p, c) {
-                        register(p + n, c);
-                    }
-                    for (i = 0; i < 20; i += 1) {
-                        triangles[i].register_steps(register_r, pos, rot);
-                    }
-                },
-                set_center: function (c) {
-                    var i;
-                    center = c;
-                    for (i = 0; i < 20; i += 1) {
-                        triangles[i].set_center(c);
-                    }
-                },
-                radius: function () {
-                    return r1;
-                },
-                center: function () {
-                    return center;
-                },
-                reset: function () {
-                    center = undefined;
-                },
-                has_intersection: function () {
-                    var i;
-                    for (i = 0; i < 20; i += 1) {
-                        if (triangles[i].has_intersection()) {
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-            };
-        }
-
-        function activate_sphere(n) {
-            var smallest;
-            while ((n >= spheres.length) && (spheres.length < 20)) {
-                smallest = spheres[spheres.length - 1].radius();
-                spheres.push(init_sphere(
-                    spheres.length,
-                    smallest * 0.5,
-                    smallest * 1.5
-                ));
-            }
-            if ((n >= active_spheres) && (active_spheres < spheres.length)) {
-                spheres[active_spheres].reset();
-                active_spheres += 1;
             }
         }
-
-        spheres[0] = init_sphere(0, 1, 3.1);
 
         return {
-            redraw: function (pos, rot) {
-                var i;
-                r.clear();
-                for (i = 0; i < active_spheres; i += 1) {
-                    spheres[i].draw(pos, rot);
-                }
-            },
-            step: function (pos, rot) {
-                var c, i, highest = -1000, highest_compute;
-                function register(priority, compute) {
-                    if (priority > highest) {
-                        highest = priority;
-                        highest_compute = compute;
-                    }
-                }
-                for (i = 0; i < active_spheres; i += 1) {
-                    c = spheres[i].center();
-                    if ((!c) || (dist(pos, c) > spheres[i].radius() * 0.2)) {
-                        spheres[i].set_center(pos);
-                        active_spheres = i + 1;
-                    }
-                    spheres[i].register_steps(register, pos, rot);
-                }
-                if (spheres[active_spheres - 1].has_intersection()) {
-                    activate_sphere(active_spheres);
-                }
-                if (highest_compute) {
-                    highest_compute();
-                    return true;
-                }
-                return false;
-            },
+            redraw: redraw,
+            step: step,
             scale: function () {
-                return spheres[active_spheres - 1].radius();
+                return triangles[triangles.length - 1].radius;
             }
         };
     }
@@ -810,6 +803,7 @@ function jijitai(env) {
             },
             step: function () {
                 if (!r.step(cam_pos, cam_rotm)) {
+                    do_redraw();
                     return false;
                 }
                 if (new Date().getTime() - last_redraw > 200) {
@@ -858,8 +852,9 @@ function jijitai(env) {
         function onframe() {
             var mx = env.mouse().getX() / env.canvas().width,
                 my = env.mouse().getY() / env.canvas().height,
-                t = new Date().getTime();
-            move((t - last_move_time) / 1000);
+                t = new Date().getTime(),
+                dt = (t - last_move_time) / 1000;
+            move((dt > 0.1) ? 0.1 : dt);
             last_move_time = t;
             if (lock_rotation) {
                 mx = prev_mousex;
