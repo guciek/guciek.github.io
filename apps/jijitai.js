@@ -669,22 +669,23 @@ function jijitai(env) {
 
         add_sphere(0.5, 3.1);
 
-        function start_updater(index, pos) {
+        function start_updater(index, pos, tex_size) {
             updater_index = index;
             updater = triangle_texture_updater(
                 triangles[index].nr,
                 pos,
                 triangles[index].radius,
                 triangles[index].radius_outer,
-                256,
+                tex_size,
                 r.triangle_texture_pos
             );
         }
 
-        function updater_step() {
+        function updater_step(onupdate) {
             if (updater.step()) {
                 return true;
             }
+            onupdate();
             triangles[updater_index] = updater.triangle_info();
             if (!triangles[updater_index].empty) {
                 if (!textures[updater_index]) {
@@ -696,9 +697,9 @@ function jijitai(env) {
             return true;
         }
 
-        function step(pos, rot) {
+        function step(pos, rot, onupdate) {
             if (updater) {
-                return updater_step();
+                return updater_step(onupdate);
             }
 
             var i, d, max_dist = -1000, max_i = -1, v;
@@ -709,13 +710,14 @@ function jijitai(env) {
                     rot
                 );
                 d = dist(pos, triangles[i].center) / triangles[i].radius;
-                if (d > 10) { d = 10; }
+                if (d > 0.5) { d = 0.5; }
                 if (d > 0.00001) {
                     if (v >= 1) {
                         d += v * 0.1;
                     } else {
                         d -= 100;
                     }
+                    d += Math.floor(i / 20);
                     if (d > max_dist) {
                         max_dist = d;
                         max_i = i;
@@ -723,9 +725,10 @@ function jijitai(env) {
                 }
             }
 
-            if ((max_dist <= 0.05) && (triangles.length < 200)) {
+            if (triangles.length < 200) {
                 for (i = triangles.length - 20; i < triangles.length; i += 1) {
-                    if (triangles[i].intersection) {
+                    d = dist(pos, triangles[i].center) / triangles[i].radius;
+                    if (triangles[i].intersection && (d < 0.01)) {
                         d = triangles[i].radius;
                         add_sphere(d * 0.5, d * 1.3);
                         return true;
@@ -734,7 +737,7 @@ function jijitai(env) {
             }
 
             if (max_i >= 0) {
-                start_updater(max_i, pos);
+                start_updater(max_i, pos, 128);
                 return true;
             }
 
@@ -773,8 +776,7 @@ function jijitai(env) {
     function view() {
         var r = renderer(),
             cam_pos = matrix.vector([0, 0, -1]),
-            cam_rotm = matrix.identity(3),
-            last_redraw = 0;
+            cam_rotm = matrix.identity(3);
 
         function m_rotate(r, i) {
             var i1 = (i + 1) % 3, i2 = (i + 2) % 3;
@@ -783,11 +785,6 @@ function jijitai(env) {
                     set_cell(i1, i2, Math.sin(r)).
                     set_cell(i2, i1, -Math.sin(r)).
                     set_cell(i2, i2, Math.cos(r));
-        }
-
-        function do_redraw() {
-            r.redraw(cam_pos, cam_rotm);
-            last_redraw = new Date().getTime();
         }
 
         return {
@@ -799,17 +796,10 @@ function jijitai(env) {
                 if (d > 2) {
                     cam_pos = cam_pos.mult(2 / d);
                 }
-                do_redraw();
+                r.redraw(cam_pos, cam_rotm);
             },
-            step: function () {
-                if (!r.step(cam_pos, cam_rotm)) {
-                    do_redraw();
-                    return false;
-                }
-                if (new Date().getTime() - last_redraw > 200) {
-                    do_redraw();
-                }
-                return true;
+            step: function (onupdate) {
+                return r.step(cam_pos, cam_rotm, onupdate);
             },
             scale: r.scale
         };
@@ -876,7 +866,7 @@ function jijitai(env) {
         env.runOnNextFrame(onframe);
 
         function onidle() {
-            if (v.step()) {
+            if (v.step(function () { drawn = false; })) {
                 env.runOnNextIdle(onidle);
             } else {
                 env.runOnNextFrame(onidle);
