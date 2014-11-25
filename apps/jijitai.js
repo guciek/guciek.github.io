@@ -152,6 +152,9 @@ function jijitai(env) {
             }
         }
 
+        env.runOnCanvasResize(update_viewport);
+        update_viewport();
+
         function new_program(vs, fs) {
             var prog = gl.createProgram(),
                 attributes = {},
@@ -232,7 +235,6 @@ function jijitai(env) {
             }
             function activate() {
                 if (cur_program !== prog) {
-                    update_viewport();
                     cur_program = prog;
                     gl.useProgram(prog);
                 }
@@ -342,7 +344,6 @@ function jijitai(env) {
             new_buffer_float32: new_buffer_float32,
             new_texture: new_texture,
             clear : function (r, g, b) {
-                update_viewport();
                 gl.clearColor(r || 0, g || 0, b || 0, 1);
                 gl.clear(gl.COLOR_BUFFER_BIT);
             }
@@ -440,19 +441,19 @@ function jijitai(env) {
         return false;
     }
 
-    function renderer() {
+    function triangle_renderer() {
         var w = webgl(env.canvas()),
             prog = w.new_program(
                 "precision mediump float;" +
+                    "uniform float ratio;" +
                     "attribute vec3 xyz;" +
                     "attribute vec2 uv;" +
-                    "uniform mat3 rot;" +
                     "uniform vec3 pos;" +
-                    "uniform float ratio;" +
+                    "uniform mat3 rot;" +
                     "varying vec2 v_st;" +
                     "void main() {" +
                     "    v_st = uv;" +
-                    "    vec3 p = rot * (xyz - pos);" +
+                    "    vec3 p = rot * (xyz + pos);" +
                     "    gl_Position = vec4(p.x * ratio, p.y, p.z, p.z);" +
                     "}",
                 "precision mediump float;" +
@@ -465,45 +466,102 @@ function jijitai(env) {
                     "}"
             ),
             mesh = icosahedron(),
-            buf_xyz = (function () {
-                var i, a = [];
-                for (i = 0; i < mesh.length; i += 1) {
-                    a.push(mesh[i].cell(0, 0));
-                    a.push(mesh[i].cell(1, 0));
-                    a.push(mesh[i].cell(2, 0));
-                }
-                return w.new_buffer_float32(a);
-            }()),
-            buf_uv = (function () {
-                var i, a = [];
-                for (i = 0; i < mesh.length; i += 3) {
-                    a.push(0.5);
-                    a.push(0);
-                    a.push(0);
-                    a.push(1);
-                    a.push(1);
-                    a.push(1);
-                }
-                return w.new_buffer_float32(a);
-            }()),
-            spheres = [],
-            active_spheres = 1,
             last_ratio = 1;
+
+        function update_ratio() {
+            last_ratio = env.canvas().height / env.canvas().width;
+            prog.uniform_float("ratio").set_value(last_ratio);
+        }
+        update_ratio();
+        env.runOnCanvasResize(update_ratio);
+
+        prog.attribute_vec3("xyz").set_buffer((function () {
+            var i, a = [];
+            for (i = 0; i < mesh.length; i += 1) {
+                a.push(mesh[i].cell(0, 0));
+                a.push(mesh[i].cell(1, 0));
+                a.push(mesh[i].cell(2, 0));
+            }
+            return w.new_buffer_float32(a);
+        }()));
+
+        prog.attribute_vec2("uv").set_buffer((function () {
+            var i, a = [];
+            for (i = 0; i < mesh.length; i += 3) {
+                a.push(0.5);
+                a.push(0);
+                a.push(0);
+                a.push(1);
+                a.push(1);
+                a.push(1);
+            }
+            return w.new_buffer_float32(a);
+        }()));
 
         function interpolate(p1, p2, part) {
             return p1.mult(1 - part).add(p2.mult(part));
         }
 
-        function point_visible(v, cam) {
-            v = cam.mult(v);
-            if (v.cell(2, 0) <= 0) { return false; }
-            if (v.cell(0, 0) * last_ratio > v.cell(2, 0)) { return false; }
-            if (v.cell(0, 0) * last_ratio < -v.cell(2, 0)) { return false; }
-            if (v.cell(1, 0) > v.cell(2, 0)) { return false; }
-            if (v.cell(1, 0) < -v.cell(2, 0)) { return false; }
+        function point_visible(v, rot) {
+            v = rot.mult(v);
+            var z = v.cell(2, 0);
+            if (z <= 0) { return false; }
+            if (v.cell(0, 0) * last_ratio > z) { return false; }
+            if (v.cell(0, 0) * last_ratio < -z) { return false; }
+            if (v.cell(1, 0) > z) { return false; }
+            if (v.cell(1, 0) < -z) { return false; }
             return true;
         }
 
+        function triangle_visible(nr, pos, rot) {
+            var i, p, ret = 0;
+            for (i = 0; i < 3; i += 1) {
+                p = mesh[nr * 3 + i];
+                if (point_visible(pos.add(p), rot)) {
+                    ret += 1;
+                }
+            }
+            return ret;
+        }
+
+        function triangle_draw(nr, pos, rot, texture) {
+            prog.uniform_vec3("pos").set_matrix(pos);
+            prog.uniform_mat3("rot").set_matrix(rot);
+            texture.webgl_bind();
+            prog.draw_triangles(nr * 3, 3);
+        }
+
+        function triangle_texture_pos(nr, tex_x, tex_y) {
+            var v = mesh[nr * 3 + 1];
+            if (tex_y < 1) {
+                v = interpolate(
+                    v,
+                    mesh[nr * 3 + 2],
+                    (tex_x - tex_y * 0.5) / (1 - tex_y)
+                );
+            }
+            return interpolate(
+                v,
+                mesh[nr * 3],
+                tex_y
+            );
+        }
+
+        return {
+            clear: function () {
+                w.clear(0.4, 0.5, 1.0);
+            },
+            triangle_draw: triangle_draw,
+            triangle_visible: triangle_visible,
+            triangle_texture_pos: triangle_texture_pos,
+            new_texture: w.new_texture
+        };
+    }
+
+    function renderer() {
+        var r = triangle_renderer(),
+            spheres = [],
+            active_spheres = 1;
         function init_triangle(nr, r1, r2, tex_size) {
             var c = document.createElement("canvas").getContext("2d"),
                 texture,
@@ -524,19 +582,8 @@ function jijitai(env) {
                 if (next_x > tex_size - next_y * 0.5 + 1) {
                     return false;
                 }
-                var ray, ww = tex_size - next_y - 1;
-                if (ww < 1) {
-                    ww = 1;
-                }
-                ray = interpolate(
-                    interpolate(
-                        mesh[nr * 3 + 1],
-                        mesh[nr * 3 + 2],
-                        (next_x - next_y * 0.5) / ww
-                    ),
-                    mesh[nr * 3],
-                    next_y / tex_size
-                );
+                var ray = r.triangle_texture_pos(nr, next_x / tex_size,
+                        next_y / tex_size);
                 ray = render_ray(
                     center.cell(0, 0),
                     center.cell(1, 0),
@@ -565,7 +612,7 @@ function jijitai(env) {
             }
             function steps() {
                 var k = 0;
-                while (k < 10) {
+                while (k < 100) {
                     if (next_y >= tex_size) {
                         return;
                     }
@@ -577,35 +624,30 @@ function jijitai(env) {
                     }
                 }
             }
-            function visible_vertices(cam) {
-                var i, p, ret = 0;
-                for (i = 0; i < 3; i += 1) {
-                    p = mesh[nr * 3 + i];
-                    if (point_visible(center.add(p.mult(r1)), cam)) {
-                        ret += 1;
-                    }
-                }
-                return ret;
-            }
             return {
-                draw: function () {
+                draw: function (pos, rot) {
                     if (empty) {
                         return;
                     }
                     if (updated) {
                         if (!texture) {
-                            texture = w.new_texture();
+                            texture = r.new_texture();
                         }
                         texture.set_image(c.canvas);
                     }
                     if (texture) {
-                        texture.webgl_bind();
-                        prog.draw_triangles(nr * 3, 3);
+                        r.triangle_draw(nr, center.sub(pos).mult(1 / r1),
+                                rot, texture);
                     }
                 },
-                register_steps: function (register, cam) {
+                register_steps: function (register, pos, rot) {
                     if (next_y < tex_size) {
-                        register(visible_vertices(cam) * 1000, steps);
+                        register(
+                            r.triangle_visible(nr,
+                                center.sub(pos).mult(1 / r1),
+                                rot) * 1000,
+                            steps
+                        );
                     }
                 },
                 set_center: function (newc) {
@@ -633,24 +675,21 @@ function jijitai(env) {
                 }
             }());
             return {
-                draw: function (pos) {
+                draw: function (pos, rot) {
                     if (!center) { return; }
-                    prog.uniform_vec3("pos").set_matrix(
-                        pos.sub(center).mult(1 / r1)
-                    );
                     var i;
                     for (i = 0; i < 20; i += 1) {
-                        triangles[i].draw();
+                        triangles[i].draw(pos, rot);
                     }
                 },
-                register_steps: function (register, cam) {
+                register_steps: function (register, pos, rot) {
                     if (!center) { return; }
                     var i;
                     function register_r(p, c) {
                         register(p + n, c);
                     }
                     for (i = 0; i < 20; i += 1) {
-                        triangles[i].register_steps(register_r, cam);
+                        triangles[i].register_steps(register_r, pos, rot);
                     }
                 },
                 set_center: function (c) {
@@ -682,13 +721,13 @@ function jijitai(env) {
         }
 
         function activate_sphere(n) {
-            var r;
+            var smallest;
             while ((n >= spheres.length) && (spheres.length < 20)) {
-                r = spheres[spheres.length - 1].radius();
+                smallest = spheres[spheres.length - 1].radius();
                 spheres.push(init_sphere(
                     spheres.length,
-                    r * 0.5,
-                    r * 1.5
+                    smallest * 0.5,
+                    smallest * 1.5
                 ));
             }
             if ((n >= active_spheres) && (active_spheres < spheres.length)) {
@@ -699,18 +738,12 @@ function jijitai(env) {
 
         spheres[0] = init_sphere(0, 1, 3.1);
 
-        prog.attribute_vec3("xyz").set_buffer(buf_xyz);
-        prog.attribute_vec2("uv").set_buffer(buf_uv);
-
         return {
             redraw: function (pos, rot) {
                 var i;
-                w.clear(0.4, 0.5, 1.0);
-                last_ratio = env.canvas().height / env.canvas().width;
-                prog.uniform_mat3("rot").set_matrix(rot);
-                prog.uniform_float("ratio").set_value(last_ratio);
+                r.clear();
                 for (i = 0; i < active_spheres; i += 1) {
-                    spheres[i].draw(pos);
+                    spheres[i].draw(pos, rot);
                 }
             },
             step: function (pos, rot) {
@@ -727,7 +760,7 @@ function jijitai(env) {
                         spheres[i].set_center(pos);
                         active_spheres = i + 1;
                     }
-                    spheres[i].register_steps(register, rot);
+                    spheres[i].register_steps(register, pos, rot);
                 }
                 if (spheres[active_spheres - 1].has_intersection()) {
                     activate_sphere(active_spheres);
@@ -823,24 +856,24 @@ function jijitai(env) {
         }
 
         function onframe() {
-            var mx = lock_rotation ? prev_mousex : env.mouse().getX(),
-                my = lock_rotation ? prev_mousey : env.mouse().getY(),
+            var mx = env.mouse().getX() / env.canvas().width,
+                my = env.mouse().getY() / env.canvas().height,
                 t = new Date().getTime();
             move((t - last_move_time) / 1000);
             last_move_time = t;
-            if ((mx < 0) && (my < 0)) {
-                mx = Math.floor(env.canvas().width * 0.5);
-                my = Math.floor(env.canvas().height * 0.5);
+            if (lock_rotation) {
+                mx = prev_mousex;
+                my = prev_mousey;
+            }
+            if ((mx < 0) || (my < 0)) {
+                mx = 0.5;
+                my = 0.5;
             }
             if ((mx !== prev_mousex) || (my !== prev_mousey) || (!drawn)) {
                 prev_mousex = mx;
                 prev_mousey = my;
                 drawn = true;
-                v.redraw(
-                    3 * (0.5 - (my / env.canvas().height)),
-                    11 * ((mx / env.canvas().width) - 0.5),
-                    movement
-                );
+                v.redraw(3 * (0.5 - my), 11 * (mx - 0.5), movement);
                 movement = matrix.vector([0, 0, 0]);
             }
             env.runOnNextFrame(onframe);
