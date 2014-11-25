@@ -577,16 +577,17 @@ function jijitai(env) {
             if (next_x > tex_size - next_y * 0.5 + 1) {
                 return false;
             }
-            var ray = triangle_texture_pos(nr, next_x / tex_size,
+            var r1m = r1 * 0.7,
+                ray = triangle_texture_pos(nr, next_x / tex_size,
                     next_y / tex_size);
             ray = render_ray(
                 center.cell(0, 0),
                 center.cell(1, 0),
                 center.cell(2, 0),
-                ray.cell(0, 0) * r1,
-                ray.cell(1, 0) * r1,
-                ray.cell(2, 0) * r1,
-                r2 / r1,
+                ray.cell(0, 0) * r1m,
+                ray.cell(1, 0) * r1m,
+                ray.cell(2, 0) * r1m,
+                r2 / r1m,
                 function () { intersection = true; }
             );
             if (ray) {
@@ -667,7 +668,7 @@ function jijitai(env) {
             }
         }
 
-        add_sphere(0.5, 3.1);
+        add_sphere(0.7, 3.1);
 
         function start_updater(index, pos, tex_size) {
             updater_index = index;
@@ -730,7 +731,7 @@ function jijitai(env) {
                     d = dist(pos, triangles[i].center) / triangles[i].radius;
                     if (triangles[i].intersection && (d < 0.01)) {
                         d = triangles[i].radius;
-                        add_sphere(d * 0.5, d * 1.3);
+                        add_sphere(d * 0.5, d);
                         return true;
                     }
                 }
@@ -788,9 +789,14 @@ function jijitai(env) {
         }
 
         return {
-            redraw: function (rx, ry, movement) {
-                cam_rotm = m_rotate(-rx, 0).mult(m_rotate(ry, 1));
-                var d, inv = m_rotate(-ry, 1).mult(m_rotate(rx, 0));
+            redraw: function (rx, ry, rz, movement) {
+                cam_rotm = m_rotate(-rx, 0).
+                        mult(m_rotate(ry, 1)).
+                        mult(m_rotate(rz, 2));
+                var d,
+                    inv = m_rotate(-rz, 2).
+                        mult(m_rotate(-ry, 1)).
+                        mult(m_rotate(rx, 0));
                 cam_pos = cam_pos.add(inv.mult(movement));
                 d = dist(cam_pos, matrix.vector([0, 0, 0]));
                 if (d > 2) {
@@ -813,11 +819,12 @@ function jijitai(env) {
             key_pressed = {},
             drawn = false,
             last_move_time = new Date().getTime(),
-            lock_rotation = false;
+            lock_rotation = false,
+            rot_z = 0;
 
         function move(t) {
             var speed = 0.6 * v.scale();
-            if (key_pressed[87]) {
+            if (key_pressed[87] || key_pressed.m) {
                 movement = movement.set_cell(2, 0,
                         movement.cell(2, 0) + speed * t);
                 drawn = false;
@@ -835,6 +842,14 @@ function jijitai(env) {
             if (key_pressed[68]) {
                 movement = movement.set_cell(0, 0,
                         movement.cell(0, 0) + speed * t);
+                drawn = false;
+            }
+            if (key_pressed[81]) {
+                rot_z += 0.5 * t;
+                drawn = false;
+            }
+            if (key_pressed[69]) {
+                rot_z -= 0.5 * t;
                 drawn = false;
             }
         }
@@ -858,7 +873,7 @@ function jijitai(env) {
                 prev_mousex = mx;
                 prev_mousey = my;
                 drawn = true;
-                v.redraw(3 * (0.5 - my), 11 * (mx - 0.5), movement);
+                v.redraw(3 * (0.5 - my), 11 * (mx - 0.5), rot_z, movement);
                 movement = matrix.vector([0, 0, 0]);
             }
             env.runOnNextFrame(onframe);
@@ -892,6 +907,14 @@ function jijitai(env) {
             if (ev.keyCode === 32) {
                 lock_rotation = !lock_rotation;
             }
+        });
+
+        document.body.onmousedown = env.eventHandler(function () {
+            key_pressed.m = true;
+        });
+
+        document.body.onmouseup = env.eventHandler(function () {
+            key_pressed.m = false;
         });
 
         env.menu().addSubmenu("Fractal").
