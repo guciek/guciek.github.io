@@ -413,13 +413,8 @@ function jijitai(env) {
         return (r < 2);
     }
 
-    function render_ray(cx, cy, cz, sx, sy, sz, max, oncollision) {
-        var i = 1, f = 1.01, x, y, z, d, prev_d;
-        if (mandelbulb(cx + sx, cy + sy, cz + sz)) {
-            oncollision();
-            return false;
-        }
-        i *= f;
+    function render_ray(cx, cy, cz, sx, sy, sz, step, max, oncollision) {
+        var i = 0.7, x, y, z, d, prev_d;
         while (i < max) {
             prev_d = d;
             x = cx + i * sx;
@@ -430,13 +425,19 @@ function jijitai(env) {
                 return false;
             }
             if ((d <= 1) && mandelbulb(x, y, z)) {
+                if (i <= 1) {
+                    oncollision();
+                }
+                if (i === 0.7) {
+                    return true;
+                }
                 x -= cx;
                 y -= cy;
                 z -= cz;
                 d = -Math.log(Math.sqrt(x * x + y * y + z * z)) * 3;
                 return [0.5 + Math.sin(d) * 0.5, 0.5 + Math.cos(d) * 0.5, 1];
             }
-            i *= f;
+            i *= (1 + step);
         }
         return false;
     }
@@ -577,29 +578,34 @@ function jijitai(env) {
             if (next_x > tex_size - next_y * 0.5 + 1) {
                 return false;
             }
-            var r1m = r1 * 0.7,
-                ray = triangle_texture_pos(nr, next_x / tex_size,
+            var ray = triangle_texture_pos(nr, next_x / tex_size,
                     next_y / tex_size);
             ray = render_ray(
                 center.cell(0, 0),
                 center.cell(1, 0),
                 center.cell(2, 0),
-                ray.cell(0, 0) * r1m,
-                ray.cell(1, 0) * r1m,
-                ray.cell(2, 0) * r1m,
-                r2 / r1m,
+                ray.cell(0, 0) * r1,
+                ray.cell(1, 0) * r1,
+                ray.cell(2, 0) * r1,
+                1 / tex_size,
+                r2 / r1,
                 function () { intersection = true; }
             );
             if (ray) {
-                if (ray[0] < 0) { ray[0] = 0; }
-                if (ray[0] > 1) { ray[0] = 1; }
-                if (ray[1] < 0) { ray[1] = 0; }
-                if (ray[1] > 1) { ray[1] = 1; }
-                if (ray[2] < 0) { ray[2] = 0; }
-                if (ray[2] > 1) { ray[2] = 1; }
-                c.fillStyle = "rgb(" + Math.floor(255 * ray[0]) + "," +
-                        Math.floor(255 * ray[1]) + "," +
-                        Math.floor(255 * ray[2]) + ")";
+                if (typeof ray === "object") {
+                    if (ray[0] < 0) { ray[0] = 0; }
+                    if (ray[0] > 1) { ray[0] = 1; }
+                    if (ray[1] < 0) { ray[1] = 0; }
+                    if (ray[1] > 1) { ray[1] = 1; }
+                    if (ray[2] < 0) { ray[2] = 0; }
+                    if (ray[2] > 1) { ray[2] = 1; }
+                    c.fillStyle = "rgb(" + Math.floor(255 * ray[0]) + "," +
+                            Math.floor(255 * ray[1]) + "," +
+                            Math.floor(255 * ray[2]) + ")";
+                } else {
+                    c.fillStyle = "rgb(127,127,127)";
+                    intersection = true;
+                }
                 c.fillRect(next_x, next_y, 1, 1);
                 empty = false;
             } else {
@@ -683,6 +689,7 @@ function jijitai(env) {
         }
 
         function updater_step(onupdate) {
+            var i;
             if (updater.step()) {
                 return true;
             }
@@ -694,6 +701,9 @@ function jijitai(env) {
                 }
                 updater.update_texture(textures[updater_index]);
             }
+            for (i = updater_index - 20; i >= 0; i -= 20) {
+                triangles[i].hidden = triangles[updater_index].opaque;
+            }
             updater = undefined;
             return true;
         }
@@ -703,70 +713,110 @@ function jijitai(env) {
                 return updater_step(onupdate);
             }
 
-            var i, d, max_dist = -1000, max_i = -1, v;
-            for (i = 0; i < triangles.length; i += 1) {
-                v = r.triangle_visible(
-                    triangles[i].nr,
-                    matrix.vector([0, 0, 0]),
-                    rot
-                );
-                d = dist(pos, triangles[i].center) / triangles[i].radius;
-                if (d > 0.5) { d = 0.5; }
-                if (d > 0.00001) {
-                    if (v >= 1) {
-                        d += v * 0.1;
-                    } else {
-                        d -= 100;
-                    }
-                    d += Math.floor(i / 20);
-                    if (d > max_dist) {
-                        max_dist = d;
-                        max_i = i;
-                    }
-                }
-            }
-
-            if (triangles.length < 200) {
+            (function () {
+                var i, d, remove = true;
                 for (i = triangles.length - 20; i < triangles.length; i += 1) {
                     d = dist(pos, triangles[i].center) / triangles[i].radius;
                     if (triangles[i].intersection && (d < 0.01)) {
                         d = triangles[i].radius;
                         add_sphere(d * 0.5, d);
-                        return true;
+                        return;
+                    }
+                    if ((!triangles[i].empty) && (d < 0.5)) {
+                        remove = false;
+                    }
+                }
+                if (remove && (triangles.length > 20)) {
+                    remove = false;
+                    for (i = triangles.length - 20; i < triangles.length; i += 1) {
+                        if (triangles[i].texture_size) {
+                            remove = true;
+                        }
+                    }
+                    if (remove) {
+                        triangles.splice(-20, 20);
+                        for (i = triangles.length - 20; i < triangles.length; i += 1) {
+                            triangles[i].hidden = false;
+                        }
+                    }
+                }
+            }());
+
+            var max_dist = -1000, max_i = -1, max_tex = -1;
+
+            function check_triangle_stack(nr) {
+                var i, d, v, tex;
+                for (i = triangles.length - 20 + nr; i >= 0; i -= 20) {
+                    tex = triangles[i].texture_size || 16;
+                    d = dist(pos, triangles[i].center) / triangles[i].radius;
+                    if (d > 0.5) { d = 0.5; }
+                    if ((tex < 256) || (d > 0.00001)) {
+                        v = d * 2;
+                        v = v * v * 20;
+                        v += 2 * Math.floor(i / 20) / triangles.length;
+                        v -= Math.log(tex) / 3;
+                        if ((v > max_dist) && (!triangles[i].hidden)) {
+                            max_dist = v;
+                            max_i = i;
+                            max_tex = (d > 1 / tex) ? 32 : (tex * 2);
+                        }
                     }
                 }
             }
 
+            (function () {
+                var nr, v, skipped = [];
+                for (nr = 0; nr < 20; nr += 1) {
+                    v = r.triangle_visible(
+                        nr,
+                        matrix.vector([0, 0, 0]),
+                        rot
+                    );
+                    if (v >= 1) {
+                        check_triangle_stack(nr);
+                    } else {
+                        skipped.push(nr);
+                    }
+                }
+                if (max_i < 0) {
+                    for (nr = 0; nr < skipped.length; nr += 1) {
+                        check_triangle_stack(skipped[nr]);
+                    }
+                }
+            }());
+
             if (max_i >= 0) {
-                start_updater(max_i, pos, 128);
+                start_updater(max_i, pos, max_tex);
                 return true;
             }
 
             return false;
         }
 
-        function redraw(pos, rot) {
-            var i, d;
+        function draw_triangle(pos, rot, t, tex) {
+            if (t.empty) { return; }
+            if (t.hidden) { return; }
+            if (dist(pos, t.center) > t.radius * 0.5) { return; }
+            r.triangle_draw(
+                t.nr,
+                t.center.sub(pos).mult(
+                    1 / t.radius
+                ),
+                rot,
+                tex
+            );
+        }
+
+        function draw_all(pos, rot) {
+            var i;
             r.clear();
             for (i = 0; i < triangles.length; i += 1) {
-                if (!triangles[i].empty) {
-                    d = dist(pos, triangles[i].center);
-                    if (d < triangles[i].radius * 0.5) {
-                        r.triangle_draw(
-                            triangles[i].nr,
-                            triangles[i].center.sub(pos).mult(
-                                1 / triangles[i].radius
-                            ),
-                            rot,
-                            textures[i]
-                        );
-                    }
-                }
+                draw_triangle(pos, rot, triangles[i], textures[i]);
             }
         }
 
         return {
-            redraw: redraw,
+            redraw: draw_all,
             step: step,
             scale: function () {
                 return triangles[triangles.length - 1].radius;
