@@ -6,70 +6,129 @@
 function jijitai(env) {
     "use strict";
 
-    function matrix(h, w) {
-        var m, v = [];
-
-        (function () {
-            var i;
-            for (i = 0; i < w * h; i += 1) {
+    var matrix = (function () {
+        function wrapper(h, w, v) {
+            return {
+                cell: function (y, x) {
+                    return v[y * w + x];
+                },
+                set_cell: function (y, x, val) {
+                    val = Number(val);
+                    if (isNaN(val)) {
+                        throw "Setting matrix cell to NaN!";
+                    }
+                    var i, v2 = [];
+                    for (i = 0; i < h * w; i += 1) {
+                        v2[i] = v[i];
+                    }
+                    v2[y * w + x] = val;
+                    return wrapper(h, w, v2);
+                },
+                add: function (m2) {
+                    if ((w !== m2.width()) || (h !== m2.height())) {
+                        throw "Invalid matrix addition!";
+                    }
+                    var y, x, v2 = [];
+                    for (y = 0; y < h; y += 1) {
+                        for (x = 0; x < w; x += 1) {
+                            v2.push(v[y * w + x] + m2.cell(y, x));
+                        }
+                    }
+                    return wrapper(h, w, v2);
+                },
+                sub: function (m2) {
+                    if ((w !== m2.width()) || (h !== m2.height())) {
+                        throw "Invalid matrix subtraction!";
+                    }
+                    var y, x, v2 = [];
+                    for (y = 0; y < h; y += 1) {
+                        for (x = 0; x < w; x += 1) {
+                            v2.push(v[y * w + x] - m2.cell(y, x));
+                        }
+                    }
+                    return wrapper(h, w, v2);
+                },
+                mult: function (m2) {
+                    var s, y, x, i, v2 = [];
+                    if (typeof m2 === "object") {
+                        if (w !== m2.height()) {
+                            throw "Invalid matrix multiplication!";
+                        }
+                        for (y = 0; y < h; y += 1) {
+                            for (x = 0; x < m2.width(); x += 1) {
+                                s = 0;
+                                for (i = 0; i < w; i += 1) {
+                                    s += v[y * w + i] * m2.cell(i, x);
+                                }
+                                v2.push(s);
+                            }
+                        }
+                        return wrapper(h, m2.width(), v2);
+                    }
+                    m2 = Number(m2);
+                    if (isNaN(m2)) {
+                        throw "Invalid multiplication by NaN!";
+                    }
+                    for (y = 0; y < h; y += 1) {
+                        for (x = 0; x < w; x += 1) {
+                            v2.push(v[y * w + x] * m2);
+                        }
+                    }
+                    return wrapper(h, w, v2);
+                },
+                width: function () {
+                    return w;
+                },
+                height: function () {
+                    return h;
+                }
+            };
+        }
+        function zeros(h, w) {
+            var i, v = [];
+            for (i = 0; i < h * w; i += 1) {
                 v.push(0);
             }
-        }());
-
-        m = {
-            cell: function (y, x) {
-                return v[y * w + x];
-            },
-            set_cell: function (y, x, val) {
-                val = Number(val);
-                if (!val) { val = 0; }
-                v[y * w + x] = val;
-                return m;
-            },
-            add: function (m2) {
-                if ((w !== m2.width()) || (h !== m2.height())) {
-                    throw "Invalid matrix addition!";
-                }
-                var y, x, ret = matrix(h, w);
-                for (y = 0; y < h; y += 1) {
-                    for (x = 0; x < w; x += 1) {
-                        ret.set_cell(y, x, v[y * w + x] + m2.cell(y, x));
-                    }
-                }
-                return ret;
-            },
-            mult: function (m2) {
-                if (w !== m2.height()) {
-                    throw "Invalid matrix multiplication!";
-                }
-                var s, y, x, i, ret = matrix(h, m2.width());
-                for (y = 0; y < h; y += 1) {
-                    for (x = 0; x < m2.width(); x += 1) {
-                        s = 0;
-                        for (i = 0; i < w; i += 1) {
-                            s += v[y * w + i] * m2.cell(i, x);
-                        }
-                        ret.set_cell(y, x, s);
-                    }
-                }
-                return ret;
-            },
-            width: function () {
-                return w;
-            },
-            height: function () {
-                return h;
-            }
-        };
-        return m;
-    }
-
-    function identity(s) {
-        var i, m = matrix(s, s);
-        for (i = 0; i < s; i += 1) {
-            m.set_cell(i, i, 1);
+            return wrapper(h, w, v);
         }
-        return m;
+        function identity(s) {
+            var y, x, v = [];
+            for (y = 0; y < s; y += 1) {
+                for (x = 0; x < s; x += 1) {
+                    v.push((y === x) ? 1 : 0);
+                }
+            }
+            return wrapper(s, s, v);
+        }
+        function vector(arr) {
+            var y, a, v = [];
+            for (y = 0; y < arr.length; y += 1) {
+                a = Number(arr[y]);
+                if (isNaN(a)) {
+                    throw "Initializing a vector with NaN!";
+                }
+                v.push(a);
+            }
+            return wrapper(arr.length, 1, v);
+        }
+        return {
+            zeros: zeros,
+            identity: identity,
+            vector: vector
+        };
+    }());
+
+    function dist(p1, p2) {
+        if ((p1.width() !== 1) || (p2.width() !== 1) ||
+                (p1.height() !== p2.height())) {
+            throw "Invalid vectors for computing distance!";
+        }
+        var v, s = 0, i;
+        for (i = 0; i < p1.height(); i += 1) {
+            v = p1.cell(i, 0) - p2.cell(i, 0);
+            s += v * v;
+        }
+        return Math.sqrt(s);
     }
 
     function webgl(canvas) {
@@ -134,14 +193,18 @@ function jijitai(env) {
                     }
                 };
             }
-            function uniform_init_vec4(n) {
+            function uniform_init_vec3(n) {
                 var attr = gl.getUniformLocation(prog, n);
                 if (attr < 0) {
                     throw "Could not load uniform variable location!";
                 }
                 return {
-                    set_values : function (x, y, z, w) {
-                        gl.uniform4f(attr, x, y, z, w);
+                    set_matrix : function (m) {
+                        if ((m.width() !== 1) || (m.height() !== 3)) {
+                            throw "Invalid matrix size!";
+                        }
+                        gl.uniform3f(attr,
+                                m.cell(0, 0), m.cell(1, 0), m.cell(2, 0));
                     }
                 };
             }
@@ -159,8 +222,8 @@ function jijitai(env) {
                             }
                         }
                         values = new Float32Array(values);
-                        if ((m.width() === 4) && (m.height() === 4)) {
-                            gl.uniformMatrix4fv(attr, gl.FALSE, values);
+                        if ((m.width() === 3) && (m.height() === 3)) {
+                            gl.uniformMatrix3fv(attr, gl.FALSE, values);
                         } else {
                             throw "Invalid matrix size!";
                         }
@@ -168,12 +231,10 @@ function jijitai(env) {
                 };
             }
             function activate() {
-                update_viewport();
                 if (cur_program !== prog) {
+                    update_viewport();
                     cur_program = prog;
                     gl.useProgram(prog);
-                    gl.enable(gl.BLEND);
-                    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
                 }
             }
             addshader(gl.VERTEX_SHADER, vs);
@@ -216,15 +277,15 @@ function jijitai(env) {
                     uniforms[n] = uniform_init_float(n);
                     return uniforms[n];
                 },
-                uniform_vec4: function (n) {
+                uniform_vec3: function (n) {
                     if (uniforms[n]) {
                         return uniforms[n];
                     }
                     activate();
-                    uniforms[n] = uniform_init_vec4(n);
+                    uniforms[n] = uniform_init_vec3(n);
                     return uniforms[n];
                 },
-                uniform_mat4: function (n) {
+                uniform_mat3: function (n) {
                     if (uniforms[n]) {
                         return uniforms[n];
                     }
@@ -264,7 +325,7 @@ function jijitai(env) {
                 set_image: function (i) {
                     gl.bindTexture(gl.TEXTURE_2D, t);
                     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB,
                             gl.UNSIGNED_BYTE, i);
                     return ret;
                 },
@@ -289,20 +350,21 @@ function jijitai(env) {
     }
 
     function icosahedron() {
-        var t = (1 + Math.sqrt(5)) / 2,
+        var s = 0.52573111211,
+            t = 0.85065080835,
             v = [
-                [-1, t, 0],
-                [1, t, 0],
-                [-1, -t, 0],
-                [1, -t, 0],
-                [0, -1, t],
-                [0, 1, t],
-                [0, -1, -t],
-                [0, 1, -t],
-                [t, 0, -1],
-                [t, 0, 1],
-                [-t, 0, -1],
-                [-t, 0, 1]
+                matrix.vector([-s, t, 0]),
+                matrix.vector([s, t, 0]),
+                matrix.vector([-s, -t, 0]),
+                matrix.vector([s, -t, 0]),
+                matrix.vector([0, -s, t]),
+                matrix.vector([0, s, t]),
+                matrix.vector([0, -s, -t]),
+                matrix.vector([0, s, -t]),
+                matrix.vector([t, 0, -s]),
+                matrix.vector([t, 0, s]),
+                matrix.vector([-t, 0, -s]),
+                matrix.vector([-t, 0, s])
             ];
         return [
             v[0], v[11], v[5],
@@ -384,29 +446,31 @@ function jijitai(env) {
                 "precision mediump float;" +
                     "attribute vec3 xyz;" +
                     "attribute vec2 uv;" +
-                    "uniform mat4 rot;" +
-                    "uniform vec4 sphere;" +
+                    "uniform mat3 rot;" +
+                    "uniform vec3 pos;" +
                     "uniform float ratio;" +
-                    "varying vec2 st;" +
+                    "varying vec2 v_st;" +
                     "void main() {" +
-                    "    vec4 p = rot * vec4(xyz*sphere.w+sphere.xyz, 1.0);" +
-                    "    st = uv;" +
+                    "    v_st = uv;" +
+                    "    vec3 p = rot * (xyz - pos);" +
                     "    gl_Position = vec4(p.x * ratio, p.y, p.z, p.z);" +
                     "}",
                 "precision mediump float;" +
-                    "varying vec2 st;" +
+                    "varying vec2 v_st;" +
                     "uniform sampler2D sampl;" +
                     "void main() {" +
-                    "    gl_FragColor = texture2D(sampl, vec2(st.s, st.t));" +
+                    "    vec4 c = texture2D(sampl, vec2(v_st.s, v_st.t));" +
+                    "    if (c.xyz == vec3(0.0)) discard;" +
+                    "    gl_FragColor = c;" +
                     "}"
             ),
             mesh = icosahedron(),
             buf_xyz = (function () {
                 var i, a = [];
                 for (i = 0; i < mesh.length; i += 1) {
-                    a.push(mesh[i][0]);
-                    a.push(mesh[i][1]);
-                    a.push(mesh[i][2]);
+                    a.push(mesh[i].cell(0, 0));
+                    a.push(mesh[i].cell(1, 0));
+                    a.push(mesh[i].cell(2, 0));
                 }
                 return w.new_buffer_float32(a);
             }()),
@@ -427,24 +491,10 @@ function jijitai(env) {
             last_ratio = 1;
 
         function interpolate(p1, p2, part) {
-            return [p1[0] * (1 - part) + p2[0] * part,
-                    p1[1] * (1 - part) + p2[1] * part,
-                    p1[2] * (1 - part) + p2[2] * part];
+            return p1.mult(1 - part).add(p2.mult(part));
         }
 
-        function dist(p1, p2) {
-            var x = p1[0] - p2[0],
-                y = p1[1] - p2[1],
-                z = p1[2] - p2[2];
-            return Math.sqrt(x * x + y * y + z * z);
-        }
-
-        function point_visible(x, y, z, cam) {
-            var v = matrix(4, 1).
-                set_cell(0, 0, x).
-                set_cell(1, 0, y).
-                set_cell(2, 0, z).
-                set_cell(3, 0, 1);
+        function point_visible(v, cam) {
             v = cam.mult(v);
             if (v.cell(2, 0) <= 0) { return false; }
             if (v.cell(0, 0) * last_ratio > v.cell(2, 0)) { return false; }
@@ -456,15 +506,17 @@ function jijitai(env) {
 
         function init_triangle(nr, r1, r2, tex_size) {
             var c = document.createElement("canvas").getContext("2d"),
-                t = w.new_texture(),
+                texture,
                 updated = false,
                 empty = true,
                 intersection = false,
                 next_y = tex_size,
                 next_x = 0,
-                center = [0, 0, 0];
+                center = matrix.vector([0, 0, 0]);
             c.canvas.width = tex_size;
             c.canvas.height = tex_size;
+            c.fillStyle = "rgb(0,0,0)";
+            c.fillRect(0, 0, tex_size, tex_size);
             function step() {
                 if (next_x < next_y * 0.5 - 1) {
                     return false;
@@ -486,12 +538,12 @@ function jijitai(env) {
                     next_y / tex_size
                 );
                 ray = render_ray(
-                    center[0],
-                    center[1],
-                    center[2],
-                    ray[0] * r1,
-                    ray[1] * r1,
-                    ray[2] * r1,
+                    center.cell(0, 0),
+                    center.cell(1, 0),
+                    center.cell(2, 0),
+                    ray.cell(0, 0) * r1,
+                    ray.cell(1, 0) * r1,
+                    ray.cell(2, 0) * r1,
                     r2 / r1,
                     function () { intersection = true; }
                 );
@@ -529,9 +581,7 @@ function jijitai(env) {
                 var i, p, ret = 0;
                 for (i = 0; i < 3; i += 1) {
                     p = mesh[nr * 3 + i];
-                    if (point_visible(center[0] + p[0] * r1,
-                            center[1] + p[1] * r1,
-                            center[2] + p[2] * r1, cam)) {
+                    if (point_visible(center.add(p.mult(r1)), cam)) {
                         ret += 1;
                     }
                 }
@@ -543,24 +593,30 @@ function jijitai(env) {
                         return;
                     }
                     if (updated) {
-                        t.set_image(c.canvas);
+                        if (!texture) {
+                            texture = w.new_texture();
+                        }
+                        texture.set_image(c.canvas);
                     }
-                    t.webgl_bind();
-                    prog.draw_triangles(nr * 3, 3);
+                    if (texture) {
+                        texture.webgl_bind();
+                        prog.draw_triangles(nr * 3, 3);
+                    }
                 },
                 register_steps: function (register, cam) {
                     if (next_y < tex_size) {
                         register(visible_vertices(cam) * 1000, steps);
                     }
                 },
-                set_center: function (x, y, z) {
-                    center = [x, y, z];
+                set_center: function (newc) {
+                    center = newc;
                     empty = true;
                     updated = true;
                     intersection = false;
                     next_x = 0;
                     next_y = 0;
-                    c.clearRect(0, 0, tex_size, tex_size);
+                    c.fillStyle = "rgb(0,0,0)";
+                    c.fillRect(0, 0, tex_size, tex_size);
                 },
                 has_intersection: function () {
                     return intersection;
@@ -569,7 +625,7 @@ function jijitai(env) {
         }
 
         function init_sphere(n, r1, r2) {
-            var triangles = [], cx = 1000, cy = 0, cz = 0;
+            var triangles = [], center;
             (function () {
                 var i;
                 for (i = 0; i < 20; i += 1) {
@@ -577,16 +633,18 @@ function jijitai(env) {
                 }
             }());
             return {
-                draw: function () {
-                    if (cx > 100) { return; }
-                    prog.uniform_vec4("sphere").set_values(cx, cy, cz, r1);
+                draw: function (pos) {
+                    if (!center) { return; }
+                    prog.uniform_vec3("pos").set_matrix(
+                        pos.sub(center).mult(1 / r1)
+                    );
                     var i;
                     for (i = 0; i < 20; i += 1) {
                         triangles[i].draw();
                     }
                 },
                 register_steps: function (register, cam) {
-                    if (cx > 100) { return; }
+                    if (!center) { return; }
                     var i;
                     function register_r(p, c) {
                         register(p + n, c);
@@ -595,23 +653,21 @@ function jijitai(env) {
                         triangles[i].register_steps(register_r, cam);
                     }
                 },
-                set_center: function (x, y, z) {
+                set_center: function (c) {
                     var i;
-                    cx = x;
-                    cy = y;
-                    cz = z;
+                    center = c;
                     for (i = 0; i < 20; i += 1) {
-                        triangles[i].set_center(x, y, z);
+                        triangles[i].set_center(c);
                     }
                 },
                 radius: function () {
                     return r1;
                 },
                 center: function () {
-                    return [cx, cy, cz];
+                    return center;
                 },
                 reset: function () {
-                    cx = 1000;
+                    center = undefined;
                 },
                 has_intersection: function () {
                     var i;
@@ -632,7 +688,7 @@ function jijitai(env) {
                 spheres.push(init_sphere(
                     spheres.length,
                     r * 0.5,
-                    r
+                    r * 1.5
                 ));
             }
             if ((n >= active_spheres) && (active_spheres < spheres.length)) {
@@ -641,24 +697,24 @@ function jijitai(env) {
             }
         }
 
-        spheres[0] = init_sphere(0, 0.5, 1);
+        spheres[0] = init_sphere(0, 1, 3.1);
 
         prog.attribute_vec3("xyz").set_buffer(buf_xyz);
         prog.attribute_vec2("uv").set_buffer(buf_uv);
 
         return {
-            redraw: function (cam) {
+            redraw: function (pos, rot) {
                 var i;
                 w.clear(0.4, 0.5, 1.0);
-                prog.uniform_mat4("rot").set_matrix(cam);
                 last_ratio = env.canvas().height / env.canvas().width;
+                prog.uniform_mat3("rot").set_matrix(rot);
                 prog.uniform_float("ratio").set_value(last_ratio);
                 for (i = 0; i < active_spheres; i += 1) {
-                    spheres[i].draw();
+                    spheres[i].draw(pos);
                 }
             },
             step: function (pos, rot) {
-                var d, i, highest = -1000, highest_compute;
+                var c, i, highest = -1000, highest_compute;
                 function register(priority, compute) {
                     if (priority > highest) {
                         highest = priority;
@@ -666,9 +722,9 @@ function jijitai(env) {
                     }
                 }
                 for (i = 0; i < active_spheres; i += 1) {
-                    d = dist(pos, spheres[i].center());
-                    if (d > spheres[i].radius() * 0.5) {
-                        spheres[i].set_center(pos[0], pos[1], pos[2]);
+                    c = spheres[i].center();
+                    if ((!c) || (dist(pos, c) > spheres[i].radius() * 0.2)) {
+                        spheres[i].set_center(pos);
                         active_spheres = i + 1;
                     }
                     spheres[i].register_steps(register, rot);
@@ -690,45 +746,41 @@ function jijitai(env) {
 
     function view() {
         var r = renderer(),
-            cam_pos = matrix(4, 1),
-            cam_rotm = identity(4),
+            cam_pos = matrix.vector([0, 0, -1]),
+            cam_rotm = matrix.identity(3),
             last_redraw = 0;
-
-        cam_pos.set_cell(2, 0, -1);
 
         function m_rotate(r, i) {
             var i1 = (i + 1) % 3, i2 = (i + 2) % 3;
-            return identity(4).
+            return matrix.identity(3).
                     set_cell(i1, i1, Math.cos(r)).
                     set_cell(i1, i2, Math.sin(r)).
                     set_cell(i2, i1, -Math.sin(r)).
                     set_cell(i2, i2, Math.cos(r));
         }
 
-        function m_cam_pos() {
-            return identity(4).
-                    set_cell(0, 3, -cam_pos.cell(0, 0)).
-                    set_cell(1, 3, -cam_pos.cell(1, 0)).
-                    set_cell(2, 3, -cam_pos.cell(2, 0));
+        function do_redraw() {
+            r.redraw(cam_pos, cam_rotm);
+            last_redraw = new Date().getTime();
         }
 
         return {
-            onrotate: function (rx, ry, movement) {
+            redraw: function (rx, ry, movement) {
                 cam_rotm = m_rotate(-rx, 0).mult(m_rotate(ry, 1));
-                var inv = m_rotate(-ry, 1).mult(m_rotate(rx, 0));
+                var d, inv = m_rotate(-ry, 1).mult(m_rotate(rx, 0));
                 cam_pos = cam_pos.add(inv.mult(movement));
-                r.redraw(cam_rotm.mult(m_cam_pos()));
-                last_redraw = new Date().getTime();
+                d = dist(cam_pos, matrix.vector([0, 0, 0]));
+                if (d > 2) {
+                    cam_pos = cam_pos.mult(2 / d);
+                }
+                do_redraw();
             },
             step: function () {
-                if (!r.step([cam_pos.cell(0, 0), cam_pos.cell(1, 0),
-                        cam_pos.cell(2, 0)], cam_rotm)) {
+                if (!r.step(cam_pos, cam_rotm)) {
                     return false;
                 }
-                var t = new Date().getTime();
-                if (t - last_redraw > 200) {
-                    r.redraw(cam_rotm.mult(m_cam_pos()));
-                    last_redraw = t;
+                if (new Date().getTime() - last_redraw > 200) {
+                    do_redraw();
                 }
                 return true;
             },
@@ -740,28 +792,32 @@ function jijitai(env) {
         var v = view(),
             prev_mousex = -1,
             prev_mousey = -1,
-            movement = matrix(4, 1),
+            movement = matrix.vector([0, 0, 0]),
             key_pressed = {},
             drawn = false,
-            last_time = new Date().getTime(),
+            last_move_time = new Date().getTime(),
             lock_rotation = false;
 
         function move(t) {
             var speed = 0.6 * v.scale();
             if (key_pressed[87]) {
-                movement.set_cell(2, 0, movement.cell(2, 0) + speed * t);
+                movement = movement.set_cell(2, 0,
+                        movement.cell(2, 0) + speed * t);
                 drawn = false;
             }
             if (key_pressed[83]) {
-                movement.set_cell(2, 0, movement.cell(2, 0) - speed * t);
+                movement = movement.set_cell(2, 0,
+                        movement.cell(2, 0) - speed * t);
                 drawn = false;
             }
             if (key_pressed[65]) {
-                movement.set_cell(0, 0, movement.cell(0, 0) - speed * t);
+                movement = movement.set_cell(0, 0,
+                        movement.cell(0, 0) - speed * t);
                 drawn = false;
             }
             if (key_pressed[68]) {
-                movement.set_cell(0, 0, movement.cell(0, 0) + speed * t);
+                movement = movement.set_cell(0, 0,
+                        movement.cell(0, 0) + speed * t);
                 drawn = false;
             }
         }
@@ -770,8 +826,8 @@ function jijitai(env) {
             var mx = lock_rotation ? prev_mousex : env.mouse().getX(),
                 my = lock_rotation ? prev_mousey : env.mouse().getY(),
                 t = new Date().getTime();
-            move((t - last_time) / 1000);
-            last_time = t;
+            move((t - last_move_time) / 1000);
+            last_move_time = t;
             if ((mx < 0) && (my < 0)) {
                 mx = Math.floor(env.canvas().width * 0.5);
                 my = Math.floor(env.canvas().height * 0.5);
@@ -780,12 +836,12 @@ function jijitai(env) {
                 prev_mousex = mx;
                 prev_mousey = my;
                 drawn = true;
-                v.onrotate(
+                v.redraw(
                     3 * (0.5 - (my / env.canvas().height)),
                     11 * ((mx / env.canvas().width) - 0.5),
                     movement
                 );
-                movement = matrix(4, 1);
+                movement = matrix.vector([0, 0, 0]);
             }
             env.runOnNextFrame(onframe);
         }
