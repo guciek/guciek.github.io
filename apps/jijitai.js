@@ -391,29 +391,7 @@ function jijitai(env) {
         ];
     }
 
-    function mandelbulb(x, y, z) {
-        x *= 1.3;
-        y *= 1.3;
-        z *= 1.3;
-        var i, r, phi, theta, sinth, cx = x, cy = y, cz = z;
-        for (i = 0; i < 1000; i += 1) {
-            r = Math.sqrt(x * x + y * y + z * z);
-            if (r > 1.3) { return false; }
-            phi = 8 * Math.atan2(z, x);
-            theta = 8 * Math.acos(y / r);
-            sinth = Math.sin(theta);
-            r = r * r;
-            r = r * r;
-            r = r * r;
-            x = r * sinth * Math.cos(phi) + cx;
-            y = r * Math.cos(theta) + cy;
-            z = r * sinth * Math.sin(phi) + cz;
-        }
-        r = Math.sqrt(x * x + y * y + z * z);
-        return (r < 2);
-    }
-
-    function render_ray(cx, cy, cz, sx, sy, sz, step, max, oncollision) {
+    function render_ray(formula, cx, cy, cz, sx, sy, sz, step, max, oncollision) {
         var i = 0.7, x, y, z, d, prev_d;
         while (i < max) {
             prev_d = d;
@@ -424,7 +402,7 @@ function jijitai(env) {
             if ((d > 1) && prev_d && (d > prev_d)) {
                 return false;
             }
-            if ((d <= 1) && mandelbulb(x, y, z)) {
+            if ((d <= 1) && formula(x, y, z)) {
                 if (i <= 1) {
                     oncollision();
                 }
@@ -559,8 +537,8 @@ function jijitai(env) {
         };
     }
 
-    function triangle_texture_updater(nr, center, r1, r2, tex_size,
-            triangle_texture_pos) {
+    function triangle_texture_updater(formula, nr, center, r1, r2,
+            tex_size, triangle_texture_pos) {
         var c = document.createElement("canvas").getContext("2d"),
             opaque = true,
             empty = true,
@@ -581,6 +559,7 @@ function jijitai(env) {
             var ray = triangle_texture_pos(nr, next_x / tex_size,
                     next_y / tex_size);
             ray = render_ray(
+                formula,
                 center.cell(0, 0),
                 center.cell(1, 0),
                 center.cell(2, 0),
@@ -654,7 +633,7 @@ function jijitai(env) {
         };
     }
 
-    function renderer() {
+    function renderer(formula) {
         var r = triangle_renderer(),
             updater,
             updater_index = -1,
@@ -674,11 +653,10 @@ function jijitai(env) {
             }
         }
 
-        add_sphere(0.7, 3.1);
-
         function start_updater(index, pos, tex_size) {
             updater_index = index;
             updater = triangle_texture_updater(
+                formula,
                 triangles[index].nr,
                 pos,
                 triangles[index].radius,
@@ -815,19 +793,32 @@ function jijitai(env) {
             }
         }
 
+        function reset() {
+            triangles = [];
+            updater = undefined;
+            updater_index = -1;
+            add_sphere(0.7, 3.1);
+        }
+
+        reset();
+
         return {
             redraw: draw_all,
             step: step,
             scale: function () {
                 return triangles[triangles.length - 1].radius;
+            },
+            set_formula: function (f) {
+                formula = f;
+                reset();
             }
         };
     }
 
-    function view() {
-        var r = renderer(),
-            cam_pos = matrix.vector([0, 0, -1]),
-            cam_rotm = matrix.identity(3);
+    function view(formula_name, formula, cam_pos) {
+        var r = renderer(formula),
+            cam_rotm = matrix.identity(3),
+            hash_update = false;
 
         function m_rotate(r, i) {
             var i1 = (i + 1) % 3, i2 = (i + 2) % 3;
@@ -838,6 +829,16 @@ function jijitai(env) {
                     set_cell(i2, i2, Math.cos(r));
         }
 
+        setInterval(env.eventHandler(function () {
+            if (hash_update) {
+                hash_update = false;
+                env.location().setHash(formula_name + ";" +
+                        cam_pos.cell(0, 0) + ";" +
+                        cam_pos.cell(1, 0) + ";" +
+                        cam_pos.cell(2, 0) + ";v");
+            }
+        }), 1000);
+
         return {
             redraw: function (rx, ry, rz, movement) {
                 cam_rotm = m_rotate(-rx, 0).
@@ -847,7 +848,12 @@ function jijitai(env) {
                     inv = m_rotate(-rz, 2).
                         mult(m_rotate(-ry, 1)).
                         mult(m_rotate(rx, 0));
-                cam_pos = cam_pos.add(inv.mult(movement));
+                if ((movement.cell(0, 0) !== 0) ||
+                        (movement.cell(1, 0) !== 0) ||
+                        (movement.cell(2, 0) !== 0)) {
+                    hash_update = true;
+                    cam_pos = cam_pos.add(inv.mult(movement));
+                }
                 d = dist(cam_pos, matrix.vector([0, 0, 0]));
                 if (d > 2) {
                     cam_pos = cam_pos.mult(2 / d);
@@ -857,12 +863,83 @@ function jijitai(env) {
             step: function (onupdate) {
                 return r.step(cam_pos, cam_rotm, onupdate);
             },
-            scale: r.scale
+            scale: r.scale,
+            set_formula: function (fn, f, pos) {
+                formula_name = fn;
+                r.set_formula(f);
+                cam_pos = pos;
+                cam_rotm = matrix.identity(3);
+                hash_update = true;
+            }
+        };
+    }
+
+    function formula_list() {
+        return {
+            "mandelbulb": function (x, y, z) {
+                x *= 1.3;
+                y *= 1.3;
+                z *= 1.3;
+                var i, r, phi, theta, sinth, cx = x, cy = y, cz = z;
+                for (i = 0; i < 1000; i += 1) {
+                    r = Math.sqrt(x * x + y * y + z * z);
+                    if (r > 1.3) { return false; }
+                    phi = 8 * Math.atan2(z, x);
+                    theta = 8 * Math.acos(y / r);
+                    sinth = Math.sin(theta);
+                    r = r * r;
+                    r = r * r;
+                    r = r * r;
+                    x = r * sinth * Math.cos(phi) + cx;
+                    y = r * Math.cos(theta) + cy;
+                    z = r * sinth * Math.sin(phi) + cz;
+                }
+                r = Math.sqrt(x * x + y * y + z * z);
+                return (r < 2);
+            },
+            "mandelbox": function (x, y, z) {
+                x *= 11;
+                y *= 11;
+                z *= 11;
+                var i, r, cx = x, cy = y, cz = z, dr = 1;
+                for (i = 0; i < 100; i += 1) {
+                    if (x > 1.0) {
+                        x = 2.0 - x;
+                    } else if (x < -1.0) {
+                        x = -2.0 - x;
+                    }
+                    if (y > 1.0) {
+                        y = 2.0 - y;
+                    } else if (y < -1.0) {
+                        y = -2.0 - y;
+                    }
+                    if (z > 1.0) {
+                        z = 2.0 - z;
+                    } else if (z < -1.0) {
+                        z = -2.0 - z;
+                    }
+                    r = x * x + y * y + z * z;
+                    if (r < 0.25) {
+                        x = x * 4;
+                        y = y * 4;
+                        z = z * 4;
+                    } else if (r < 1) {
+                        x = x / r;
+                        y = y / r;
+                        z = z / r;
+                    }
+                    x = x * 2 + cx;
+                    y = y * 2 + cy;
+                    z = z * 2 + cz;
+                    dr *= 2;
+                }
+                return Math.sqrt(x * x + y * y + z * z) * 100 < dr;
+            }
         };
     }
 
     function init() {
-        var v = view(),
+        var v,
             prev_mousex = -1,
             prev_mousey = -1,
             movement = matrix.vector([0, 0, 0]),
@@ -870,7 +947,10 @@ function jijitai(env) {
             drawn = false,
             last_move_time = new Date().getTime(),
             lock_rotation = false,
-            rot_z = 0;
+            rot_z = 0,
+            formulas = formula_list(),
+            current_formula = "mandelbulb",
+            current_pos = matrix.vector([0, 0, -1.1]);
 
         function move(t) {
             var speed = 0.6 * v.scale();
@@ -939,6 +1019,27 @@ function jijitai(env) {
         }
         env.runOnNextIdle(onidle);
 
+        function onhashchange() {
+            var x, y, z, loc = env.location().getHash().split(";");
+            if (loc.length < 4) { return; }
+            x = parseFloat(loc[1]);
+            y = parseFloat(loc[2]);
+            z = parseFloat(loc[3]);
+            if (!formulas[loc[0]]) { return; }
+            if (isNaN(x)) { return; }
+            if (isNaN(y)) { return; }
+            if (isNaN(z)) { return; }
+            drawn = false;
+            current_formula = loc[0];
+            current_pos = matrix.vector([x, y, z]);
+            if (v && (loc[4] !== "v")) {
+                v.set_formula(current_formula,
+                    formulas[current_formula], current_pos);
+            }
+        }
+        env.runOnLocationChange(onhashchange);
+        onhashchange();
+
         env.runOnCanvasResize(function () {
             drawn = false;
             onframe();
@@ -959,17 +1060,27 @@ function jijitai(env) {
             }
         });
 
-        document.body.onmousedown = env.eventHandler(function () {
+        env.canvas().onmousedown = env.eventHandler(function () {
             key_pressed.m = true;
         });
 
-        document.body.onmouseup = env.eventHandler(function () {
+        env.canvas().onmouseup = env.eventHandler(function () {
             key_pressed.m = false;
         });
 
-        env.menu().addSubmenu("Fractal").
-            addLink("Mandelbulb", "#mandelbulb").
-            addLink("Mandelbox", "#mandelbox");
+        (function () {
+            var i, s = env.menu().addSubmenu("Fractal");
+            for (i in formulas) {
+                if (formulas.hasOwnProperty(i)) {
+                    s.addLink(
+                        i[0].toUpperCase() + i.substring(1),
+                        "#" + i + ";0;0;-1.1"
+                    );
+                }
+            }
+        }());
+
+        v = view(current_formula, formulas[current_formula], current_pos);
     }
 
     init();
