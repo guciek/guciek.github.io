@@ -402,6 +402,7 @@ function loadApp(appid) {
         manager.addSubmenu("More Apps", true).
             addText("Apps:").
             addLink("Canvas Magic Eye",       "canvasmeye.html").
+            addLink("Jijitai Fractal Viewer", "jijitai.html").
             addLink("JSSpect",                "jsspect.html").
             addLink("Web Mandelbrot",         "web_mandelbrot.html").
             addLine().
