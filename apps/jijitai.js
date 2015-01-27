@@ -326,11 +326,18 @@ function jijitai(env) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             ret = {
+                set_uint8_rgb: function (arr, size) {
+                    gl.bindTexture(gl.TEXTURE_2D, t);
+                    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB,
+                        size, size, 0, gl.RGB, gl.UNSIGNED_BYTE, arr);
+                    return ret;
+                },
                 set_image: function (i) {
                     gl.bindTexture(gl.TEXTURE_2D, t);
                     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB,
-                            gl.UNSIGNED_BYTE, i);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB,
+                        gl.RGB, gl.UNSIGNED_BYTE, i);
                     return ret;
                 },
                 webgl_bind: function () {
@@ -393,94 +400,6 @@ function jijitai(env) {
         ];
     }
 
-    function mandelbrot(x, y, z) {
-        x *= 1.3;
-        y *= 1.3;
-        z *= 1.3;
-        var i, r, phi, theta, sinth, cx = x, cy = y, cz = z;
-        for (i = 0; i < 100; i += 1) {
-            r = Math.sqrt(x * x + y * y + z * z);
-            if (r > 1.3) {
-                work_counter += 5 + i;
-                return false;
-            }
-            phi = 8 * Math.atan2(z, x);
-            theta = 8 * Math.acos(y / r);
-            sinth = Math.sin(theta);
-            r = r * r;
-            r = r * r;
-            r = r * r;
-            x = r * sinth * Math.cos(phi) + cx;
-            y = r * Math.cos(theta) + cy;
-            z = r * sinth * Math.sin(phi) + cz;
-        }
-        r = Math.sqrt(x * x + y * y + z * z);
-        work_counter += 5 + i;
-        return r <= 1.3;
-    }
-
-    function shading(px, py, pz, size) {
-        var a, b, cx, cy, cz, light = 0;
-        for (a = -1; a <= 1; a += 0.4) {
-            for (b = -1; b <= 1; b += 0.4) {
-                cx = 5 * size * (0.98473 * a - 0.14415 * b + 0.097590);
-                cy = 5 * size * (-0.12309 * a - 0.18019 * b + 0.975900);
-                cz = 5 * size * (0.12309 * a + 0.97301 * b + 0.195180);
-                if (!mandelbrot(px + cx, py + cy, pz + cz)) {
-                    light += 0.03;
-                }
-            }
-        }
-        b = size;
-        for (a = 0.3; a < 1; a += 0.02) {
-            if (mandelbrot(px - b * 0.4, py + b, pz - b * 0.3)) {
-                break;
-            }
-            b += size + 0.1 * b;
-            if (py + b > 1) {
-                a = 1;
-                break;
-            }
-        }
-        return [
-            a * light,
-            a * (1 - (1 - light) * 0.2),
-            a * (1 - (1 - light) * 0.5)
-        ];
-    }
-
-    function render_ray(cx, cy, cz, sx, sy, sz, step, max, oncollision) {
-        var prev_i, i = 0.7, x, y, z, d, prev_d;
-        work_counter += 10;
-        while (i < max) {
-            prev_d = d;
-            x = cx + i * sx;
-            y = cy + i * sy;
-            z = cz + i * sz;
-            d = x * x + y * y + z * z;
-            if ((d > 1) && prev_d && (d > prev_d)) {
-                return false;
-            }
-            if ((d <= 1) && mandelbrot(x, y, z)) {
-                if (i <= 1) {
-                    oncollision();
-                }
-                if (!prev_i) {
-                    return true;
-                }
-                return shading(
-                    cx + prev_i * sx,
-                    cy + prev_i * sy,
-                    cz + prev_i * sz,
-                    (i - prev_i) * Math.sqrt(sx * sx + sy * sy + sz * sz)
-                );
-            }
-            prev_i = i;
-            i *= (1 + step);
-        }
-        return false;
-    }
-
     function triangle_renderer() {
         var w = webgl(env.canvas()),
             prog = w.new_program(
@@ -501,7 +420,7 @@ function jijitai(env) {
                     "uniform sampler2D sampl;" +
                     "void main() {" +
                     "    vec4 c = texture2D(sampl, vec2(v_st.s, v_st.t));" +
-                    "    if (c.xyz == vec3(0.0)) discard;" +
+                    "    if (c.xyz == vec3(1.0, 0.0, 0.0)) discard;" +
                     "    gl_FragColor = c;" +
                     "}"
             ),
@@ -598,280 +517,195 @@ function jijitai(env) {
         };
     }
 
-    function triangle_texture_updater(nr, center, r1, r2,
-            tex_size, triangle_texture_pos) {
-        var c = document.createElement("canvas").getContext("2d"),
-            opaque = true,
-            empty = true,
-            intersection = false,
-            next_y = 0,
-            next_x = 0;
-        c.canvas.width = tex_size;
-        c.canvas.height = tex_size;
-        c.fillStyle = "rgb(0,0,0)";
-        c.fillRect(0, 0, tex_size, tex_size);
-        function step() {
-            if (next_x < next_y * 0.5 - 1) {
-                return false;
-            }
-            if (next_x > tex_size - next_y * 0.5 + 1) {
-                return false;
-            }
-            var ray = triangle_texture_pos(nr, next_x / tex_size,
-                    next_y / tex_size);
-            ray = render_ray(
-                center.cell(0, 0),
-                center.cell(1, 0),
-                center.cell(2, 0),
-                ray.cell(0, 0) * r1,
-                ray.cell(1, 0) * r1,
-                ray.cell(2, 0) * r1,
-                1 / tex_size,
-                r2 / r1,
-                function () { intersection = true; }
-            );
-            if (ray) {
-                if (typeof ray === "object") {
-                    if (ray[0] < 0) { ray[0] = 0; }
-                    if (ray[0] > 1) { ray[0] = 1; }
-                    if (ray[1] < 0) { ray[1] = 0; }
-                    if (ray[1] > 1) { ray[1] = 1; }
-                    if (ray[2] < 0) { ray[2] = 0; }
-                    if (ray[2] > 1) { ray[2] = 1; }
-                    c.fillStyle = "rgb(" + Math.floor(255 * ray[0]) + "," +
-                            Math.floor(255 * ray[1]) + "," +
-                            Math.floor(255 * ray[2]) + ")";
-                } else {
-                    c.fillStyle = "rgb(127,127,127)";
-                    intersection = true;
-                }
-                c.fillRect(next_x, next_y, 1, 1);
-                empty = false;
-            } else {
-                opaque = false;
-            }
-            return true;
-        }
-        function steps() {
-            work_counter = 0;
-            while (work_counter < 400000) {
-                if (next_y >= tex_size) {
-                    return false;
-                }
-                step();
-                next_x += 1;
-                if (next_x >= tex_size) {
-                    next_x = 0;
-                    next_y += 1;
-                }
-            }
-            return true;
-        }
-        return {
-            step: steps,
-            update_texture: function (texture) {
-                if (next_y < tex_size) {
-                    throw "Incomplete texture!";
-                }
-                texture.set_image(c.canvas);
-            },
-            triangle_info: function () {
-                if (next_y < tex_size) {
-                    throw "Incomplete triangle information!";
-                }
-                return {
-                    center: center,
-                    empty: empty,
-                    opaque: opaque,
-                    intersection: intersection,
-                    radius: r1,
-                    radius_outer: r2,
-                    nr: nr,
-                    texture_size: tex_size
-                };
-            }
-        };
-    }
-
-    function renderer() {
+    function renderer(needredraw) {
         var r = triangle_renderer(),
-            updater,
-            updater_index = -1,
             triangles = [],
-            textures = [];
+            textures = [],
+            threads = [];
 
         function add_sphere(r1, r2) {
             var i;
             for (i = 0; i < 20; i += 1) {
                 triangles.push({
-                    center: matrix.vector([1000, 0, 0]),
                     nr: i,
-                    empty: true,
+                    center: matrix.vector([1000, 0, 0]),
                     radius: r1,
-                    radius_outer: r2
+                    radius_outer: r2,
+                    empty: true,
+                    calculated: false,
+                    intersection: false,
+                    busy: false
                 });
             }
         }
 
-        function start_updater(index, pos, tex_size) {
-            updater_index = index;
-            updater = triangle_texture_updater(
-                triangles[index].nr,
-                pos,
-                triangles[index].radius,
-                triangles[index].radius_outer,
-                tex_size,
-                r.triangle_texture_pos
-            );
-        }
-
-        function updater_step(onupdate) {
-            var i;
-            if (updater.step()) {
-                return true;
-            }
-            onupdate();
-            triangles[updater_index] = updater.triangle_info();
-            if (!triangles[updater_index].empty) {
-                if (!textures[updater_index]) {
-                    textures[updater_index] = r.new_texture();
+        function add_remove_spheres(center) {
+            var i, d, remove = true;
+            for (i = triangles.length - 20; i < triangles.length; i += 1) {
+                d = dist(center, triangles[i].center) / triangles[i].radius;
+                if (triangles[i].intersection && (d < 0.01)) {
+                    d = triangles[i].radius;
+                    add_sphere(d * 0.5, d);
+                    return;
                 }
-                updater.update_texture(textures[updater_index]);
-            }
-            for (i = updater_index - 20; i >= 0; i -= 20) {
-                triangles[i].hidden = triangles[updater_index].opaque;
-            }
-            updater = undefined;
-            return true;
-        }
-
-        function step(pos, rot, onupdate) {
-            if (updater) {
-                return updater_step(onupdate);
-            }
-
-            (function () {
-                var i, d, remove = true;
-                for (i = triangles.length - 20; i < triangles.length; i += 1) {
-                    d = dist(pos, triangles[i].center) / triangles[i].radius;
-                    if (triangles[i].intersection && (d < 0.01)) {
-                        d = triangles[i].radius;
-                        add_sphere(d * 0.5, d);
-                        return;
-                    }
-                    if ((!triangles[i].empty) && (d < 0.5)) {
-                        remove = false;
-                    }
-                }
-                if (remove && (triangles.length > 20)) {
+                if (((!triangles[i].empty) && (d < 0.5)) ||
+                        (!triangles[i].calculated)) {
                     remove = false;
-                    for (i = triangles.length - 20; i < triangles.length; i += 1) {
-                        if (triangles[i].texture_size) {
-                            remove = true;
-                        }
-                    }
-                    if (remove) {
-                        triangles.splice(-20, 20);
-                        for (i = triangles.length - 20; i < triangles.length; i += 1) {
-                            triangles[i].hidden = false;
-                        }
-                    }
-                }
-            }());
-
-            var max_dist = -1000, max_i = -1, max_tex = -1;
-
-            function check_triangle_stack(nr) {
-                var i, d, v, tex;
-                for (i = triangles.length - 20 + nr; i >= 0; i -= 20) {
-                    tex = triangles[i].texture_size || 16;
-                    d = dist(pos, triangles[i].center) / triangles[i].radius;
-                    if (d > 0.5) { d = 0.5; }
-                    if ((tex < 256) || (d > 0.00001)) {
-                        v = d * 2;
-                        v = v * v * 20;
-                        v += 2 * Math.floor(i / 20) / triangles.length;
-                        v -= Math.log(tex) / 3;
-                        if ((v > max_dist) && (!triangles[i].hidden)) {
-                            max_dist = v;
-                            max_i = i;
-                            max_tex = (d > 1 / tex) ? 32 : (tex * 2);
-                        }
-                    }
                 }
             }
-
-            (function () {
-                var nr, v, skipped = [];
-                for (nr = 0; nr < 20; nr += 1) {
-                    v = r.triangle_visible(
-                        nr,
-                        matrix.vector([0, 0, 0]),
-                        rot
-                    );
-                    if (v >= 1) {
-                        check_triangle_stack(nr);
-                    } else {
-                        skipped.push(nr);
-                    }
-                }
-                if (max_i < 0) {
-                    for (nr = 0; nr < skipped.length; nr += 1) {
-                        check_triangle_stack(skipped[nr]);
-                    }
-                }
-            }());
-
-            if (max_i >= 0) {
-                start_updater(max_i, pos, max_tex);
-                return true;
+            if (remove && (triangles.length > 20)) {
+                triangles.splice(-20, 20);
             }
-
-            return false;
         }
 
-        function draw_triangle(pos, rot, t, tex) {
-            if (t.empty) { return; }
-            if (t.hidden) { return; }
-            if (dist(pos, t.center) > t.radius * 0.5) { return; }
+        function triangle_priority(i, center, rot) {
+            var tex = 4 * (triangles[i].tex_size || 8),
+                v,
+                moved = dist(center, triangles[i].center) / triangles[i].radius,
+                d = moved;
+            if (d > 0.5) {
+                d = 0.5;
+            }
+            if (moved > 0.1) {
+                tex = 32;
+            }
+            d += 10 - Math.log(tex);
+            if (tex >= 512) {
+                tex = 512;
+                if ((triangles[i].tex_size >= 512) && (moved < 0.00001)) {
+                    return false;
+                }
+            }
+            if (!triangles[i].calculated) {
+                d += 10;
+            }
+            v = r.triangle_visible(
+                triangles[i].nr,
+                matrix.vector([0, 0, 0]),
+                rot
+            );
+            if (v < 1) {
+                return false;
+            }
+            return { priority: d, tex: tex };
+        }
+
+        function add_thread(tex_limit) {
+            if (!window.Worker) {
+                throw "Web Workers are not supported!";
+            }
+            var w = new window.Worker("apps/jijitai_render.js"),
+                busy = false;
+            function serialize_vector(m) {
+                var y, values = [];
+                if (m.width() !== 1) {
+                    throw "Invalid vector!";
+                }
+                for (y = 0; y < m.height(); y += 1) {
+                    values.push(m.cell(y, 0));
+                }
+                return values;
+            }
+            function startWork(i, new_center, tex_size) {
+                var tri = triangles[i];
+                if (busy || tri.busy) { return; }
+                busy = true;
+                tri.busy = true;
+                w.onmessage = env.eventHandler(function (ev) {
+                    busy = false;
+                    tri.busy = false;
+                    tri.center = new_center;
+                    tri.tex_size = tex_size;
+                    tri.calculated = true;
+                    tri.empty = ev.data.empty;
+                    tri.intersection = ev.data.intersection;
+                    if (!tri.empty) {
+                        if (!textures[i]) {
+                            textures[i] = r.new_texture();
+                        }
+                        textures[i].set_uint8_rgb(ev.data.tex_rgb, tex_size);
+                    }
+                    needredraw();
+                });
+                w.postMessage({
+                    center: serialize_vector(new_center),
+                    t_0_0: serialize_vector(
+                        r.triangle_texture_pos(tri.nr, 0, 0).mult(tri.radius)
+                    ),
+                    t_1_0: serialize_vector(
+                        r.triangle_texture_pos(tri.nr, 1, 0).mult(tri.radius)
+                    ),
+                    t_05_1: serialize_vector(
+                        r.triangle_texture_pos(tri.nr, 0.5, 1).mult(tri.radius)
+                    ),
+                    distance_limit: tri.radius_outer / tri.radius,
+                    tex_size: tex_size
+                });
+            }
+            function findWork(center, rot) {
+                if (busy) { return; }
+                var i, max_i, max_pri = { priority: 0 }, p;
+                for (i = 0; i < triangles.length; i += 1) {
+                    if (!triangles[i].busy) {
+                        p = triangle_priority(i, center, rot);
+                        if (p && (p.priority >= max_pri.priority) &&
+                                (p.tex <= tex_limit)) {
+                            max_pri = p;
+                            max_i = i;
+                        }
+                    }
+                }
+                if (max_pri.priority > 0) {
+                    startWork(max_i, center, max_pri.tex);
+                }
+            }
+            threads.push({
+                onmove: findWork
+            });
+        }
+
+        function draw_triangle(center, rot, tri, tex) {
+            if (tri.empty) { return; }
+            if (dist(center, tri.center) > tri.radius * 0.5) { return; }
             r.triangle_draw(
-                t.nr,
-                t.center.sub(pos).mult(
-                    1 / t.radius
+                tri.nr,
+                tri.center.sub(center).mult(
+                    1 / tri.radius
                 ),
                 rot,
                 tex
             );
         }
 
-        function draw_all(pos, rot) {
-            var i;
-            r.clear();
-            for (i = 0; i < triangles.length; i += 1) {
-                draw_triangle(pos, rot, triangles[i], textures[i]);
-            }
-        }
-
-        function reset() {
-            triangles = [];
-            updater = undefined;
-            updater_index = -1;
-            add_sphere(0.7, 3.1);
-        }
-
-        reset();
+        (function () {
+            add_sphere(1, 3.1);
+            add_thread(32);
+            add_thread(512);
+            add_thread(512);
+            add_thread(512);
+            add_thread(512);
+        }());
 
         return {
-            redraw: draw_all,
-            step: step,
+            redraw: function (center, rot) {
+                add_remove_spheres(center);
+                var i;
+                r.clear();
+                for (i = 0; i < triangles.length; i += 1) {
+                    draw_triangle(center, rot, triangles[i], textures[i]);
+                }
+                for (i = 0; i < threads.length; i += 1) {
+                    threads[i].onmove(center, rot);
+                }
+            },
             scale: function () {
                 return triangles[triangles.length - 1].radius;
             }
         };
     }
 
-    function view(onredraw) {
-        var r = renderer(),
+    function view(needredraw) {
+        var r = renderer(needredraw),
             cam_pos = matrix.vector([0, 0, -1.1]),
             cam_rotm = matrix.identity(3),
             hash_update = false,
@@ -909,7 +743,7 @@ function jijitai(env) {
             if (isNaN(x)) { return; }
             if (isNaN(y)) { return; }
             if (isNaN(z)) { return; }
-            onredraw();
+            needredraw();
             cam_pos = matrix.vector([x, y, z]);
         }
         env.runOnLocationChange(onhashchange);
@@ -935,9 +769,6 @@ function jijitai(env) {
                     cam_pos = cam_pos.mult(2 / d);
                 }
                 r.redraw(cam_pos, cam_rotm);
-            },
-            step: function (onupdate) {
-                return r.step(cam_pos, cam_rotm, onupdate);
             },
             scale: r.scale
         };
@@ -1012,15 +843,6 @@ function jijitai(env) {
         }
         env.runOnNextFrame(onframe);
 
-        function onidle() {
-            if (v.step(function () { drawn = false; })) {
-                env.runOnNextIdle(onidle);
-            } else {
-                env.runOnNextFrame(onidle);
-            }
-        }
-        env.runOnNextIdle(onidle);
-
         env.runOnCanvasResize(function () {
             drawn = false;
             onframe();
@@ -1049,8 +871,6 @@ function jijitai(env) {
         env.canvas().onmouseup = env.eventHandler(function () {
             key_pressed.m = false;
         });
-
-        env.menu().addLink("Reset", "#mandelbulb;0;0;-1.1");
 
         v = view(function () {
             drawn = false;
