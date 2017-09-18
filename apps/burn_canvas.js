@@ -86,6 +86,29 @@ function burn_canvas(env) {
             addLink("Burn", "#burn").
             addLink("Melt", "#melt").
             addLink("Unlimited Burn", "#unlimited");
+        (function () {
+            var inp = document.createElement("input");
+            inp.type = "file";
+            env.menu().addLink("Load Image", inp);
+            inp.onchange = env.eventHandler(function () {
+                if (inp.files.length < 1) { return; }
+                var fr = new window.FileReader();
+                fr.onload = env.eventHandler(function (ev) {
+                    var img = document.createElement("img");
+                    img.onload = env.eventHandler(function () {
+                        view.drawImage(
+                            img,
+                            0,
+                            0,
+                            view.canvas.width,
+                            view.canvas.height
+                        );
+                    });
+                    img.src = ev.target.result;
+                });
+                fr.readAsDataURL(inp.files[0]);
+            });
+        }());
         function onresize() {
             env.location().setHash("burn");
             view.fillStyle = "rgb(255,255,255)";
